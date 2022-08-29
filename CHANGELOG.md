@@ -1,14 +1,6 @@
-## 1.0.3
+## 1.0.4
 
-- Bug fix
-
-## 1.0.2
-
-- Code format
-
-## 1.0.1
-
-- Code format
+- Code format, bug fix
 
 ## 1.0.0
 
