@@ -73,7 +73,7 @@ code generator.
 ```dart
 @DepGen()
 class SomeBloc {
-  Bloc({
+  SomeBloc({
     @DepArg() required this.cartRepository,
     @DepArg() required this.userRepository,
   });

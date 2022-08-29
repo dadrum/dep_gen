@@ -1,6 +1,6 @@
 name: dep_gen
 description: Generates methods for creating instances of classes with automatic dependency substitution.
-version: 1.0.2
+version: 1.0.3
 homepage: https://github.com/dadrum/dep_gen.git
 
 environment:
