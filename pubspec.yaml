@@ -1,7 +1,7 @@
 name: dep_gen
-description: An annotation processor for generation of methods dependencies.
-version: 1.0.0
-# homepage: https://github.com/jorgecoca/todo_reporter.dart
+description: Generates methods for creating instances of classes with automatic dependency substitution.
+version: 1.0.1
+homepage: https://gitNhub.com/dadrum/dep_gen.git
 
 environment:
   sdk: '>=2.17.1 <3.0.0'

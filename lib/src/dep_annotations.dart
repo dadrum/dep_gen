@@ -13,4 +13,3 @@ class DepGen {
 class DepArg {
   const DepArg();
 }
-
