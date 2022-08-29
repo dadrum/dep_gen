@@ -1,0 +1,15 @@
+targets:
+  $default:
+    builders:
+      dep_gen:
+        enabled: true
+
+builders:
+  dep_gen:
+    target: ":dep_gen"
+    import: "package:dep_gen/builder.dart"
+    builder_factories: ["depGenerator"]
+    build_extensions: {"{{}}.dart": ["lib/generated/{{}}.dep_gen.g.dart"]}
+    auto_apply: dependents
+    build_to: cache
+    applies_builders: ["source_gen|combining_builder"]
