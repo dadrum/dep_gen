@@ -126,6 +126,7 @@ You can combine positional, named, and optional arguments together with automati
 arguments. For example, for a constructor with such a set of arguments:
 
 ```dart
+@DepGen()
 class UserDetails {
   const UserDetails(final int id,
       String? username, {
