@@ -11,26 +11,30 @@ and the Flutter guide for
 [developing packages and plugins](https://flutter.dev/developing-packages). 
 -->
 
-Generates methods for creating instances of classes with automatic dependency substitution.
+Generates methods to create class instances with auto dependency injection.
 
 ## Features
-
-This package allows you to generate special methods that create instances of classes with automatic
-dependency substitution. These methods will be useful when building widgets and will avoid
-constantly specifying dependencies in some classes. Basically, the package is focused on
-substituting arguments having the type described in the same project.
+This package lets you generate special methods which create instances of classes with automatic 
+dependency injection. These methods will be helpful when constructing widgets and will avoid 
+constantly specifying dependencies in certain classes. Basically, the package is aimed at replacing 
+arguments having the type described in the same project.
 
 ## Installation
 
-If you are using creating a Flutter project:
-
+With Dart:
 ```shell
 dart pub add dep_gen
 ```
 
+With Flutter:
+
+```shell
+flutter pub add dep_gen
+```
+
 ## Usage
 
-**Step 1** Describe map of available dependencies and their communications:
+**Step 1** Describe the map of available dependencies and how their communications.
 
 ```dart
 class CartRepository {}
@@ -46,8 +50,8 @@ class Environment {
 }
 ```
 
-**Step 2** Integrate *`Dependencies`* widget on top of other widgets. The code of this widget and
-its type name will be generated later.
+**Step 2** Integrate *`Dependencies`* widget on top of other widgets. The code of that widget and
+its type name will be generated afterwards.
 
 ```dart
 class Example extends StatelessWidget {
@@ -83,7 +87,7 @@ class SomeBloc {
 }
 ```
 
-The *DepArg* annotation can only be used for named and optional constructor arguments.
+The *DepArg* annotation can only be used for named and optional constructor's arguments.
 
 **Step 4**
 Run code generator from project directory.
@@ -101,8 +105,8 @@ line parameters. You can view the description of the settings by calling the cod
 ```
 
 **Step 4**
-If you do not have any syntax errors in the code, a file will be generated in which the constructors
-of all designated classes will be collected with automatic dependency substitution.
+If there are no syntax errors, a file will be generated. This file will contain the constructor 
+methods for all designated classes with auto-dependency injections.
 
 You can use the resulting code as follows:
 
@@ -123,7 +127,7 @@ class Application extends StatelessWidget {
 ## Arguments combination
 
 You can combine positional, named, and optional arguments together with automatically substituted
-arguments. For example, for a constructor with such a set of arguments:
+arguments. For example, for a constructor that has this set of parameters:
 
 ```dart
 @DepGen()
@@ -141,7 +145,7 @@ class UserDetails {
 }
 ```
 
-the build method will be generated:
+this build method will be generated:
 
 ```dart
 class Application extends StatelessWidget {

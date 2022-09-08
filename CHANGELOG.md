@@ -1,4 +1,4 @@
-## 1.0.4
+## 1.0.5
 
 - Code format, bug fix
 
