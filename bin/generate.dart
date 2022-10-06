@@ -113,6 +113,8 @@ void handleLangFiles(GenerateOptions options) async {
   outputSink.write("""
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
+// ignore_for_file: prefer_relative_imports, directives_ordering
+
 import 'package:flutter/widgets.dart';
 
 // **************************************************************************
