@@ -1,10 +1,11 @@
 import 'dart:async';
 import 'dart:io';
+
+import 'package:args/args.dart';
 import 'package:yaml/yaml.dart';
 import 'package:analyzer/dart/analysis/utilities.dart';
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/ast/token.dart';
-import 'package:args/args.dart';
 import 'package:path/path.dart' as path;
 
 // annotations
@@ -21,6 +22,7 @@ Set<String> usedClasses = {};
 String packageName = '';
 
 void main(List<String> args) {
+  print('Starting DepGen');
   if (_isHelpCommand(args)) {
     _printHelperDisplay();
   } else {
@@ -82,6 +84,7 @@ class GenerateOptions {
 
 // -----------------------------------------------------------------------------
 void handleLangFiles(GenerateOptions options) async {
+  print('Handle lang files');
   // prepare output file
   final current = Directory.current;
   final output = Directory.fromUri(Uri.parse(options.outputPath!));
@@ -93,7 +96,7 @@ void handleLangFiles(GenerateOptions options) async {
     generatedFile.deleteSync();
     generatedFile.createSync(recursive: true);
   }
-
+  print('  .. generated file = $generatedFile');
   // prepare string builder for parse
   StringBuffer outBuffer = StringBuffer();
 
@@ -101,6 +104,7 @@ void handleLangFiles(GenerateOptions options) async {
   writeHeader(outBuffer, options.className!);
 
   // recursive directory parse and write data to outBuffer
+  print('  .. start project parsing from \'$current\'');
   await recursiveDirectory(current, outBuffer, true);
 
   // write common file footer
@@ -123,9 +127,21 @@ import 'package:flutter/widgets.dart';
 
 """);
 
+  print('  .. manage imports for classes');
+  // remove nullable signs
+  usedClasses = usedClasses.map((e) => e.replaceAll('?', '')).toSet();
+
+  for (var e in usedClasses) {
+    print('  .. .. $e');
+  }
+
   // remove all unused classes
+  print('  .. remove all unused classes');
+
   final int currentPathLength = current.path.length;
-  allClassesPath.removeWhere((key, value) => !usedClasses.contains(key));
+  allClassesPath.removeWhere((key, value) {
+    return !usedClasses.contains(key);
+  });
 
   // convert all import files to package dependencies
   Set<String> usedPaths = allClassesPath.entries
@@ -142,6 +158,7 @@ import 'package:flutter/widgets.dart';
   // write to file all generated build methods
   outputSink.write('\n');
   outputSink.write(outBuffer.toString());
+  print('  .. write to file completed');
 
   outputSink.close();
 }
@@ -211,7 +228,7 @@ Future<List<FileSystemEntity>> dirContents(Directory dir) async {
 
 // -----------------------------------------------------------------------------
 Future<void> processDartFile(File inFile, StringBuffer outputSink) async {
-  final fileContent = await inFile.readAsString();
+  final fileContent = inFile.readAsStringSync();
 
   final result = parseString(content: fileContent);
 
@@ -252,7 +269,8 @@ Future<void> writeConstructorsMethod(
   //
   // ********************
   // parse and prepare constructor's name
-  String constructorName = constructor.name2?.lexeme ?? '';
+  String constructorName = constructor.name?.lexeme ?? '';
+
   String constructorCall =
       (constructorName.isNotEmpty) ? '.$constructorName' : '';
   if (constructorName.isNotEmpty) {
@@ -277,6 +295,8 @@ Future<void> writeConstructorsMethod(
 
   // save used class
   usedClasses.add(classIdentifier.lexeme);
+
+  print('  .. .. $classIdentifier->$constructorName');
 
   // write header of build method
   outputSink.write("""\n
@@ -450,11 +470,11 @@ void writeHeader(StringBuffer outputSink, String className) {
   outputSink.write(""" 
   
 class $className extends InheritedWidget {
-  final Map<Type, Object> environment;
-
-  // ---------------------------------------------------------------------------
   const $className({Key? key, required Widget child, required this.environment})
       : super(key: key, child: child);
+  
+  // ---------------------------------------------------------------------------  
+  final Map<Type, Object> environment;
 
   // ---------------------------------------------------------------------------
   static $className of(BuildContext context) {
@@ -512,7 +532,7 @@ String? getPropertyType(
     }
 
     if (declarations.first.variables
-        .where((element) => '${element.name2}' == propertyName)
+        .where((element) => '${element.name}' == propertyName)
         .isNotEmpty) {
       return '${declarations.first.type}';
     }
