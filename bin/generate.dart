@@ -147,7 +147,8 @@ import 'package:flutter/widgets.dart';
   Set<String> usedPaths = allClassesPath.entries
       .map((e) => e.value.substring(currentPathLength))
       .map((e) =>
-          '${e.replaceFirst('/lib/', 'import \'package:$packageName/')}\';')
+          '${e.replaceFirst('${Platform.pathSeparator}lib${Platform.pathSeparator}', 'import \'package:$packageName/')}\';')
+      .map((e) => e.replaceAll(Platform.pathSeparator, '/'))
       .toSet();
 
   // write dependencies to file
@@ -166,12 +167,15 @@ import 'package:flutter/widgets.dart';
 // -----------------------------------------------------------------------------
 Future<void> recursiveDirectory(
     Directory directory, StringBuffer outputSink, bool isTop) async {
+
+
   List<FileSystemEntity> content = await (dirContents(directory));
+
 
   if (isTop) {
     content = content
-        .where((element) => (element.path.endsWith('/lib') ||
-            element.path.endsWith('/pubspec.yaml')))
+        .where((element) => (element.path.endsWith('${Platform.pathSeparator}lib') ||
+            element.path.endsWith('${Platform.pathSeparator}pubspec.yaml')))
         .toList();
   }
 

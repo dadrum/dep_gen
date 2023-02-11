@@ -1,3 +1,7 @@
+## 1.0.11
+
+- Fixed a bug specific to windows platforms
+ 
 ## 1.0.10
 
 - Imports updated
