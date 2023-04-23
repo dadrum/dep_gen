@@ -11,15 +11,26 @@ import 'package:path/path.dart' as path;
 // annotations
 final String annotationDepGen = 'DepGen';
 final String annotationDepArg = 'DepArg';
+// keywords
+final String argumentForDepArgPackage = 'package';
 
 // Class name -> Class path
 Map<String, String> allClassesPath = {};
+
+// custom name -> Package path
+Map<String, String> foundedExternalPaths = {};
+Map<String, String> usedExternalPaths = {};
 
 // User classes
 Set<String> usedClasses = {};
 
 // Founded package name
 String packageName = '';
+
+extension IterableModifier<E> on Iterable<E> {
+  E? firstWhereOrNull(bool Function(E) test) =>
+      cast<E?>().firstWhere((v) => v != null && test(v), orElse: () => null);
+}
 
 void main(List<String> args) {
   print('Starting DepGen');
@@ -143,6 +154,9 @@ import 'package:flutter/widgets.dart';
     return !usedClasses.contains(key);
   });
 
+  // write used packages
+  usedExternalPaths.forEach((key, value) => outputSink.write('$value\n'));
+
   // convert all import files to package dependencies
   Set<String> usedPaths = allClassesPath.entries
       .map((e) => e.value.substring(currentPathLength))
@@ -167,15 +181,13 @@ import 'package:flutter/widgets.dart';
 // -----------------------------------------------------------------------------
 Future<void> recursiveDirectory(
     Directory directory, StringBuffer outputSink, bool isTop) async {
-
-
   List<FileSystemEntity> content = await (dirContents(directory));
-
 
   if (isTop) {
     content = content
-        .where((element) => (element.path.endsWith('${Platform.pathSeparator}lib') ||
-            element.path.endsWith('${Platform.pathSeparator}pubspec.yaml')))
+        .where((element) =>
+            (element.path.endsWith('${Platform.pathSeparator}lib') ||
+                element.path.endsWith('${Platform.pathSeparator}pubspec.yaml')))
         .toList();
   }
 
@@ -235,6 +247,15 @@ Future<void> processDartFile(File inFile, StringBuffer outputSink) async {
   final fileContent = inFile.readAsStringSync();
 
   final result = parseString(content: fileContent);
+
+  // add declared
+  for (var directive in result.unit.directives) {
+    for (var e in directive.childEntities) {
+      if (e.runtimeType.toString().contains('DeclaredSimpleIdentifier')) {
+        foundedExternalPaths['$e'] = directive.toSource();
+      }
+    }
+  }
 
   // save classes path of this dart file
   result.unit.declarations
@@ -354,6 +375,32 @@ Future<void> writeConstructorsMethod(
       if (param.metadata
           .where((annotation) => annotation.name.name == annotationDepArg)
           .isNotEmpty) {
+        // annotationDepArg
+        // find external package argument in DepArg
+        final argument = param.parameter.metadata
+            .firstWhereOrNull((e) => true)
+            ?.arguments
+            ?.childEntities
+            .whereType<NamedExpression>()
+            .firstWhereOrNull(
+                (e) => e.beginToken.lexeme == argumentForDepArgPackage);
+        String? declaredPackageName;
+        if (argument != null) {
+          // add founded package import to used imports list
+          foundedExternalPaths.entries.where((e) {
+            declaredPackageName = argument.endToken.lexeme
+                .replaceAll('\'', '')
+                .replaceAll('"', '');
+            return e.key == declaredPackageName;
+          }).forEach((e) => usedExternalPaths.addEntries([e]));
+        }
+        if(declaredPackageName != null) {
+          declaredPackageName = '$declaredPackageName.';
+        } else {
+          declaredPackageName = '';
+        }
+
+
         // param has DepArg annotation
         if (param.childEntities.first is SimpleFormalParameter) {
           final paramName =
@@ -361,17 +408,21 @@ Future<void> writeConstructorsMethod(
           final namedTypes =
               param.parameter.childEntities.whereType<NamedType>();
           if (namedTypes.isNotEmpty) {
-            final String type = '${namedTypes.first.name}';
+            String type = '${namedTypes.first.name}';
             type.replaceAll('?', '');
+
+            if((declaredPackageName?.isNotEmpty ?? false) && type.startsWith(declaredPackageName!)) {
+              type = type.replaceFirst(declaredPackageName!, '');
+            }
 
             if (param.isNamed) {
               if (param.isOptional) {
-                outArgs.write("\n      $paramName: mayBeGet<$type>(),");
+                outArgs.write("\n      $paramName: mayBeGet<$declaredPackageName$type>(),");
               } else {
-                outArgs.write("\n      g<$type>(),");
+                outArgs.write("\n      g<$declaredPackageName$type>(),");
               }
             } else {
-              outArgs.write("\n      mayBeGet<$type>(),");
+              outArgs.write("\n      mayBeGet<$declaredPackageName$type>(),");
             }
             usedClasses.add(type);
           }
@@ -379,16 +430,22 @@ Future<void> writeConstructorsMethod(
           final paramName =
               (param.childEntities.first as FieldFormalParameter).name;
           String? type = getPropertyType(declaration, '$paramName');
+
           if (type != null) {
             type = type.replaceAll('?', '');
+
+            if((declaredPackageName?.isNotEmpty ?? false) && type.startsWith(declaredPackageName!)) {
+              type = type.replaceFirst(declaredPackageName!, '');
+            }
+
             if (param.isOptional) {
               if (param.isNamed) {
-                outArgs.write("\n      $paramName: mayBeGet<$type>(),");
+                outArgs.write("\n      $paramName: mayBeGet<$declaredPackageName$type>(),");
               } else {
-                outArgs.write("\n      mayBeGet<$type>(),");
+                outArgs.write("\n      mayBeGet<$declaredPackageName$type>(),");
               }
             } else {
-              outArgs.write("\n      $paramName: g<$type>(),");
+              outArgs.write("\n      $paramName: g<$declaredPackageName$type>(),");
             }
             usedClasses.add(type);
           }

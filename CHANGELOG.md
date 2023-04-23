@@ -1,3 +1,7 @@
+## 1.0.12
+
+- DepArg argument 'package' was added to use specific imports.
+
 ## 1.0.11
 
 - Fixed a bug specific to windows platforms
