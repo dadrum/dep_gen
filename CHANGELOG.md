@@ -1,3 +1,12 @@
+## 1.0.15
+
+- Collections with typed arguments import fix
+
+## 1.0.14
+
+- Dart 3.0
+- Imports updated
+
 ## 1.0.12
 
 - DepArg argument 'package' was added to use specific imports.

@@ -128,7 +128,7 @@ void handleLangFiles(GenerateOptions options) async {
   outputSink.write("""
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-// ignore_for_file: prefer_relative_imports, directives_ordering
+// ignore_for_file: prefer_relative_imports, directives_ordering, unused_import
 
 import 'package:flutter/widgets.dart';
 
@@ -138,13 +138,8 @@ import 'package:flutter/widgets.dart';
 
 """);
 
-  print('  .. manage imports for classes');
   // remove nullable signs
   usedClasses = usedClasses.map((e) => e.replaceAll('?', '')).toSet();
-
-  for (var e in usedClasses) {
-    print('  .. .. $e');
-  }
 
   // remove all unused classes
   print('  .. remove all unused classes');
@@ -251,7 +246,7 @@ Future<void> processDartFile(File inFile, StringBuffer outputSink) async {
   // add declared
   for (var directive in result.unit.directives) {
     for (var e in directive.childEntities) {
-      if (e.runtimeType.toString().contains('DeclaredSimpleIdentifier')) {
+      if (e.runtimeType.toString().contains('SimpleIdentifierImpl')) {
         foundedExternalPaths['$e'] = directive.toSource();
       }
     }
@@ -321,8 +316,6 @@ Future<void> writeConstructorsMethod(
   // save used class
   usedClasses.add(classIdentifier.lexeme);
 
-  print('  .. .. $classIdentifier->$constructorName');
-
   // write header of build method
   outputSink.write("""\n
   // ---------------------------------------------------------------------------
@@ -345,11 +338,22 @@ Future<void> writeConstructorsMethod(
 
       final namedTypes = param.childEntities.whereType<NamedType>();
       if (namedTypes.isNotEmpty) {
-        final String type = '${namedTypes.first.name}';
+        // parse type arguments
+        // Abs<X>, Abs<X,Y>
+        for (var namedType in namedTypes) {
+          final childEntities = namedType.typeArguments?.childEntities;
+          childEntities?.forEach((element) {
+            if (element is NamedType) {
+              usedClasses.add(element.name2.lexeme);
+            }
+          });
+        }
+
+        final String type = '${namedTypes.first.name2}';
         usedClasses.add(type);
       }
     } else if (param is FieldFormalParameter) {
-      // this._storeId
+
       final String? type = getPropertyType(declaration, '${param.name}');
       inArgs.write('\n    ');
       if (param.keyword != null) {
@@ -360,10 +364,11 @@ Future<void> writeConstructorsMethod(
 
       final namedTypes = param.childEntities.whereType<NamedType>();
       if (namedTypes.isNotEmpty) {
-        final String type = '${namedTypes.first.name}';
+        final String type = '${namedTypes.first.name2}';
         usedClasses.add(type);
       }
     } else if (param is DefaultFormalParameter) {
+
       /*
             required String ssss,
             @DepArg() required bool testBool,
@@ -371,7 +376,6 @@ Future<void> writeConstructorsMethod(
             int kk = 7,
             int? jj,
       * */
-
       if (param.metadata
           .where((annotation) => annotation.name.name == annotationDepArg)
           .isNotEmpty) {
@@ -394,12 +398,11 @@ Future<void> writeConstructorsMethod(
             return e.key == declaredPackageName;
           }).forEach((e) => usedExternalPaths.addEntries([e]));
         }
-        if(declaredPackageName != null) {
+        if (declaredPackageName != null) {
           declaredPackageName = '$declaredPackageName.';
         } else {
           declaredPackageName = '';
         }
-
 
         // param has DepArg annotation
         if (param.childEntities.first is SimpleFormalParameter) {
@@ -408,16 +411,18 @@ Future<void> writeConstructorsMethod(
           final namedTypes =
               param.parameter.childEntities.whereType<NamedType>();
           if (namedTypes.isNotEmpty) {
-            String type = '${namedTypes.first.name}';
+            String type = '${namedTypes.first.name2}';
             type.replaceAll('?', '');
 
-            if((declaredPackageName?.isNotEmpty ?? false) && type.startsWith(declaredPackageName!)) {
+            if ((declaredPackageName?.isNotEmpty ?? false) &&
+                type.startsWith(declaredPackageName!)) {
               type = type.replaceFirst(declaredPackageName!, '');
             }
 
             if (param.isNamed) {
               if (param.isOptional) {
-                outArgs.write("\n      $paramName: mayBeGet<$declaredPackageName$type>(),");
+                outArgs.write(
+                    "\n      $paramName: mayBeGet<$declaredPackageName$type>(),");
               } else {
                 outArgs.write("\n      g<$declaredPackageName$type>(),");
               }
@@ -434,18 +439,21 @@ Future<void> writeConstructorsMethod(
           if (type != null) {
             type = type.replaceAll('?', '');
 
-            if((declaredPackageName?.isNotEmpty ?? false) && type.startsWith(declaredPackageName!)) {
+            if ((declaredPackageName?.isNotEmpty ?? false) &&
+                type.startsWith(declaredPackageName!)) {
               type = type.replaceFirst(declaredPackageName!, '');
             }
 
             if (param.isOptional) {
               if (param.isNamed) {
-                outArgs.write("\n      $paramName: mayBeGet<$declaredPackageName$type>(),");
+                outArgs.write(
+                    "\n      $paramName: mayBeGet<$declaredPackageName$type>(),");
               } else {
                 outArgs.write("\n      mayBeGet<$declaredPackageName$type>(),");
               }
             } else {
-              outArgs.write("\n      $paramName: g<$declaredPackageName$type>(),");
+              outArgs
+                  .write("\n      $paramName: g<$declaredPackageName$type>(),");
             }
             usedClasses.add(type);
           }
@@ -456,8 +464,20 @@ Future<void> writeConstructorsMethod(
               (param.childEntities.first as SimpleFormalParameter).name;
           final namedTypes =
               param.parameter.childEntities.whereType<NamedType>();
+
           if (namedTypes.isNotEmpty) {
-            final String type = '${namedTypes.first.name}';
+            // parse type arguments
+            // Abs<X>, Abs<X,Y>
+            for (var namedType in namedTypes) {
+              final childEntities = namedType.typeArguments?.childEntities;
+              childEntities?.forEach((element) {
+                if (element is NamedType) {
+                  usedClasses.add(element.name2.lexeme);
+                }
+              });
+            }
+
+            final String type = '${namedTypes.first.name2}';
             usedClasses.add(type);
             if (param.isNamed) {
               inNamedArgs.write('\n      $param, ');
