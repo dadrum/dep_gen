@@ -61,11 +61,6 @@ GenerateOptions _generateOption(List<String> args) {
 // -----------------------------------------------------------------------------
 ArgParser _generateArgParser(GenerateOptions? generateOptions) {
   var parser = ArgParser();
-  parser.addOption('class-name',
-      abbr: 'c',
-      defaultsTo: 'Di',
-      callback: (String? x) => generateOptions!.className = x,
-      help: 'Generated class name');
 
   parser.addOption('output-file',
       abbr: 'o',
@@ -83,13 +78,12 @@ ArgParser _generateArgParser(GenerateOptions? generateOptions) {
 
 // -----------------------------------------------------------------------------
 class GenerateOptions {
-  String? className;
   String? outputFile;
   String? outputPath;
 
   @override
   String toString() {
-    return 'className: $className outputFile: $outputFile outputPath: $outputPath';
+    return 'outputFile: $outputFile outputPath: $outputPath';
   }
 }
 
@@ -112,7 +106,7 @@ void handleLangFiles(GenerateOptions options) async {
   StringBuffer outBuffer = StringBuffer();
 
   // write common file header
-  writeHeader(outBuffer, options.className!);
+  writeHeader(outBuffer);
 
   // recursive directory parse and write data to outBuffer
   print('  .. start project parsing from \'$current\'');
@@ -128,7 +122,9 @@ void handleLangFiles(GenerateOptions options) async {
   outputSink.write("""
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-// ignore_for_file: prefer_relative_imports, directives_ordering, unused_import
+// ignore_for_file: type=lint
+
+import 'dart:collection';
 
 import 'package:flutter/widgets.dart';
 
@@ -353,7 +349,6 @@ Future<void> writeConstructorsMethod(
         usedClasses.add(type);
       }
     } else if (param is FieldFormalParameter) {
-
       final String? type = getPropertyType(declaration, '${param.name}');
       inArgs.write('\n    ');
       if (param.keyword != null) {
@@ -368,7 +363,6 @@ Future<void> writeConstructorsMethod(
         usedClasses.add(type);
       }
     } else if (param is DefaultFormalParameter) {
-
       /*
             required String ssss,
             @DepArg() required bool testBool,
@@ -422,12 +416,13 @@ Future<void> writeConstructorsMethod(
             if (param.isNamed) {
               if (param.isOptional) {
                 outArgs.write(
-                    "\n      $paramName: mayBeGet<$declaredPackageName$type>(),");
+                    "\n      $paramName: _env.mayBeGet<$declaredPackageName$type>(),");
               } else {
-                outArgs.write("\n      g<$declaredPackageName$type>(),");
+                outArgs.write("\n      _env.g<$declaredPackageName$type>(),");
               }
             } else {
-              outArgs.write("\n      mayBeGet<$declaredPackageName$type>(),");
+              outArgs
+                  .write("\n      _env.mayBeGet<$declaredPackageName$type>(),");
             }
             usedClasses.add(type);
           }
@@ -447,13 +442,14 @@ Future<void> writeConstructorsMethod(
             if (param.isOptional) {
               if (param.isNamed) {
                 outArgs.write(
-                    "\n      $paramName: mayBeGet<$declaredPackageName$type>(),");
+                    "\n      $paramName: _env.mayBeGet<$declaredPackageName$type>(),");
               } else {
-                outArgs.write("\n      mayBeGet<$declaredPackageName$type>(),");
+                outArgs.write(
+                    "\n      _env.mayBeGet<$declaredPackageName$type>(),");
               }
             } else {
-              outArgs
-                  .write("\n      $paramName: g<$declaredPackageName$type>(),");
+              outArgs.write(
+                  "\n      $paramName: _env.g<$declaredPackageName$type>(),");
             }
             usedClasses.add(type);
           }
@@ -547,36 +543,89 @@ Future<void> writeConstructorsMethod(
 }
 
 // -----------------------------------------------------------------------------
-void writeHeader(StringBuffer outputSink, String className) {
+void writeHeader(StringBuffer outputSink) {
   outputSink.write(""" 
-  
-class $className extends InheritedWidget {
-  const $className({Key? key, required Widget child, required this.environment})
-      : super(key: key, child: child);
-  
-  // ---------------------------------------------------------------------------  
-  final Map<Type, Object> environment;
+
+/// The environment in which all used dependency instances are configured
+@immutable
+class DepGenEnvironment {
+  DepGenEnvironment({Map<Type, Object>? initialServices})
+      : _environment = initialServices ?? {};
+
+  late final Map<Type, Object> _environment;
 
   // ---------------------------------------------------------------------------
-  static $className of(BuildContext context) {
-    final $className? di = context.findAncestorWidgetOfExactType<$className>();
+  /// An unsafe method for getting an instance by its type. You need to be sure
+  /// that an instance of the requested type has been registered
+  T g<T>() => _environment[T] as T;
+
+  // ---------------------------------------------------------------------------
+  /// A safe method for trying to get an instance by its type.
+  T? mayBeGet<T>() => _environment.containsKey(T) ? _environment[T] as T : null;
+
+  // ---------------------------------------------------------------------------
+  /// Registration of an instance with an indication of its type. You cannot
+  /// register multiple instances of the same type
+  void registry<T>(Object instance) => _environment[T] = instance;
+
+  // ---------------------------------------------------------------------------
+  /// Is the collection of instances blocked
+  bool get isLocked => _environment is UnmodifiableMapView;
+
+  // ---------------------------------------------------------------------------
+  /// Returns an instance of the environment settings with the collection
+  /// blocked from changes
+  DepGenEnvironment lock() {
+    return DepGenEnvironment(initialServices: Map.unmodifiable(_environment));
+  }
+}
+
+// -----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+extension DepGenContextExtension on BuildContext {
+  /// Obtain a value from the nearest ancestor DepGen.
+  DepGen depGen() => DepGen.of(this);
+}
+  
+// -----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+class DepGen extends InheritedWidget {
+  const DepGen({
+    Key? key,
+    required Widget child,
+    required DepGenEnvironment environment,
+  })  : _env = environment,
+        super(key: key, child: child);
+        
+  // --------------------------------------------------------------------------- 
+  /// A pre-configured environment containing the dependencies used 
+  final DepGenEnvironment _env;
+
+  // ---------------------------------------------------------------------------
+  static DepGen of(BuildContext context) {
+    final DepGen? di = context.findAncestorWidgetOfExactType<DepGen>();
     if (di == null) {
-      throw UnimplementedError('$className is not initialized in context');
+      throw UnimplementedError('DepGen is not initialized in context');
     }
     return di;
   }
 
   // ---------------------------------------------------------------------------
   @override
-  bool updateShouldNotify($className oldWidget) {
+  bool updateShouldNotify(DepGen oldWidget) {
     return false;
   }
 
   // ---------------------------------------------------------------------------
-  T g<T>() => environment[T] as T;
+  /// An unsafe method for getting an instance by its type. You need to be sure
+  /// that an instance of the requested type has been registered
+  T g<T>() => _env.g<T>();
 
   // ---------------------------------------------------------------------------
-  T? mayBeGet<T>() => environment.containsKey(T) ? environment[T] as T : null;
+  /// A safe method for trying to get an instance by its type.
+  T? mayBeGet<T>() => _env.mayBeGet<T>();
 
   """);
 }

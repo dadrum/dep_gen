@@ -1,3 +1,11 @@
+## 1.1.0
+
+- Removed the "-c" command line option. Now the generated class is always called DepGen.
+- The generated code now contains the DepGenEnvironment class to describe the instances used in the
+  environment.
+- As settings, DepGen accepts an instance of the DepGenEnvironment class.
+- Added extension for context DepGenContextExtension
+
 ## 1.0.15
 
 - Collections with typed arguments import fix
@@ -14,7 +22,7 @@
 ## 1.0.11
 
 - Fixed a bug specific to windows platforms
- 
+
 ## 1.0.10
 
 - Imports updated

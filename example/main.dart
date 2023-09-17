@@ -1,59 +1,70 @@
 import 'package:dep_gen/dep_gen.dart';
 import 'package:flutter/material.dart';
-import 'package:some_external_package/some_external_package.dart' as ext1;
 
 // -----------------------------------------------------------------------------
-class CartRepository {}
+// Some repositories whose implementations are not important for this example
+class PetsRepository {}
 
-class UserRepository {}
+class ShopRepository {}
 
 // -----------------------------------------------------------------------------
+// Example of a class whose constructor uses dependencies
+//
+// In the example, for simplicity, the Dependency Inversion
+// Principle is ignored
 @DepGen()
-class Bloc {
-  Bloc(
-    int externalArgument, {
-    @DepArg() required this.cartRepository,
-    @DepArg() required this.userRepository,
-    @DepArg(package: 'ext1') required this.someVariable,
-  }) : _externalArgument = externalArgument;
-
-  final int _externalArgument;
-  final CartRepository cartRepository;
-  final UserRepository userRepository;
-  final ext1.SomeExternalPackageType someVariable;
+class MyPet {
+  MyPet({
+    required String name,
+    @DepArg() required PetsRepository petsRepository,
+    @DepArg() required PetsRepository shopRepository,
+  }) {
+    // … some magic …
+  }
 }
 
 // -----------------------------------------------------------------------------
-class Environment {
-  static Map<Type, Object> prepare() => {
-        CartRepository: CartRepository(),
-        UserRepository: UserRepository(),
-      };
+// The configuration of our environment, where all the services used
+// for substitutions are prescribed
+class Environment extends DepGenEnvironment {
+  Environment prepare() {
+    // registering a repository instance
+    registry<PetsRepository>(PetsRepository());
+    // registering a repository instance
+    registry<PetsRepository>(PetsRepository());
+    // blocking configuration from changing
+    return this;
+  }
 }
 
 // -----------------------------------------------------------------------------
+// example of integration into the widget hierarchy
 void main() {
-  runApp(Dependencies(
-    environment: Environment.prepare(),
+  runApp(DepGen(
+    // Prepare environment and lock it from changes
+    environment: Environment().prepare().lock(),
     child: Application(),
   ));
 }
 
+// -----------------------------------------------------------------------------
+// Example of using generated methods
 class Application extends StatelessWidget {
-  const Application({
-    Key? key,
-    required this.externalArgument,
-  }) : super(key: key);
-
-  final int externalArgument;
+  const Application({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider<SomeBloc>(
-      create: (context) => Dependencies.of(context).buildSomeBloc(
-        externalArgument,
-      ),
-      child: SomeBlocConsumer(),
-    );
+    // one of the options for creating an instance
+    final myPetLucky = DepGen.of(context).buildMyPet(name: 'Lucky');
+
+    // one of the options for creating an instance
+    final myPetChester = context.depGen().buildMyPet(name: 'Lucky');
+
+    return
+    ...
+    some
+    beautiful
+    widget
+    ...;
   }
 }
