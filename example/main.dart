@@ -40,7 +40,7 @@ class Environment extends DepGenEnvironment {
 // -----------------------------------------------------------------------------
 // example of integration into the widget hierarchy
 void main() {
-  runApp(DepGen(
+  runApp(DepProvider(
     // Prepare environment and lock it from changes
     environment: Environment().prepare().lock(),
     child: Application(),
@@ -55,16 +55,11 @@ class Application extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // one of the options for creating an instance
-    final myPetLucky = DepGen.of(context).buildMyPet(name: 'Lucky');
+    final myPetLucky = DepProvider.of(context).buildMyPet(name: 'Lucky');
 
     // one of the options for creating an instance
     final myPetChester = context.depGen().buildMyPet(name: 'Lucky');
 
-    return
-    ...
-    some
-    beautiful
-    widget
-    ...;
+    return ... some beautiful widget ...;
   }
 }
