@@ -1,6 +1,6 @@
-## 1.1.0
+## 1.1.1
 
-- Removed the "-c" command line option. Now the generated class is always called DepGen.
+- Removed the "-c" command line option. Now the generated class is always called DepProvider.
 - The generated code now contains the DepGenEnvironment class to describe the instances used in the
   environment.
 - As settings, DepGen accepts an instance of the DepGenEnvironment class.
