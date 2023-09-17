@@ -583,16 +583,16 @@ class DepGenEnvironment {
 // -----------------------------------------------------------------------------
 // -----------------------------------------------------------------------------
 // -----------------------------------------------------------------------------
-extension DepGenContextExtension on BuildContext {
-  /// Obtain a value from the nearest ancestor DepGen.
-  DepGen depGen() => DepGen.of(this);
+extension DepProviderContextExtension on BuildContext {
+  /// Obtain a value from the nearest ancestor DepProvider.
+  DepProvider depGen() => DepProvider.of(this);
 }
   
 // -----------------------------------------------------------------------------
 // -----------------------------------------------------------------------------
 // -----------------------------------------------------------------------------
-class DepGen extends InheritedWidget {
-  const DepGen({
+class DepProvider extends InheritedWidget {
+  const DepProvider({
     Key? key,
     required Widget child,
     required DepGenEnvironment environment,
@@ -604,17 +604,17 @@ class DepGen extends InheritedWidget {
   final DepGenEnvironment _env;
 
   // ---------------------------------------------------------------------------
-  static DepGen of(BuildContext context) {
-    final DepGen? di = context.findAncestorWidgetOfExactType<DepGen>();
-    if (di == null) {
-      throw UnimplementedError('DepGen is not initialized in context');
+  static DepProvider of(BuildContext context) {
+    final DepProvider? dp = context.findAncestorWidgetOfExactType<DepProvider>();
+    if (dp == null) {
+      throw UnimplementedError('DepProvider is not initialized in context');
     }
-    return di;
+    return dp;
   }
 
   // ---------------------------------------------------------------------------
   @override
-  bool updateShouldNotify(DepGen oldWidget) {
+  bool updateShouldNotify(DepProvider oldWidget) {
     return false;
   }
 

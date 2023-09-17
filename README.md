@@ -10,48 +10,48 @@ methods do:
 
 Instead of specifying dependencies manually:
 
-```
+```dart
 // Some example class with dependencies
 class MyPet{
-	MyPet({
-		required String name,
-	    required PetsRepository petsRepository,
-		required ShopRepository shopRepository,
+    MyPet({
+        required String name,
+        required PetsRepository petsRepository,
+        required ShopRepository shopRepository,
     }) {
-    	… some magic…
+        … some magic…
     }
 }
 
 void main() {
-	…
-	final pet = MyPet(
-		name: “Lucky”,
-	    petsRepository: context.read<PetsRepository>(),
-		shopRepository: context.read<ShopRepository>(),
+    …
+    final pet = MyPet(
+        name: 'Lucky',
+        petsRepository: context.read<PetsRepository>(),
+        shopRepository: context.read<ShopRepository>(),
     );
-	…
+    …
 }
 ```
 
 You won’t have to worry about delivering dependencies and just call a special method, specifying the
 missing parameters (if any):
 
-```
+```dart
 @DepGen()
 class MyPet{
-	MyPet({
-		required String name,
-	    @DepArg() required PetsRepository petsRepository,
-		@DepArg() required ShopRepository shopRepository,
+    MyPet({
+        required String name,
+        @DepArg() required PetsRepository petsRepository,
+        @DepArg() required ShopRepository shopRepository,
     }) {
-    	… some magic…
+        … some magic…
     }
 }
 
 void main() {
-	…
-	final pet = context.depGen().buildMyPet(name: “Lucky”);
-	…
+    …
+    final pet = context.depGen().buildMyPet(name: 'Lucky');
+    …
 }
 ```
 
@@ -95,15 +95,15 @@ automatically.
 
 Example code
 
-```
+```dart
 @DepGen()
 class MyPet{
-	MyPet({
-		required String name,
-	    @DepArg() required PetsRepository petsRepository,
-		@DepArg() required ShopRepository shopRepository,
+    MyPet({
+        required String name,
+        @DepArg() required PetsRepository petsRepository,
+        @DepArg() required ShopRepository shopRepository,
     }) {
-    	… some magic…
+        … some magic…
     }
 }
 ```
@@ -139,21 +139,21 @@ need to describe the so-called environment in which instances of these classes w
 The file generated in the last step contains the **DepGenEnvironment** class, which allows you to
 register the necessary dependencies. For this he has a special method:
 
-```
+```dart
 void registry<T>(Object instance)
 ```
 
 If you need to lock your environment settings, there is a special method for this. It creates a new
 instance of the environment.
 
-```
+```dart
 DepGenEnvironment lock()
 ```
 
 A simple way to describe the environment. This code is usually used before the *runApp* in *main()*
 method
 
-```
+```dart
 void main() {
     ...
     final environment = DepGenEnvironment();
@@ -170,17 +170,17 @@ void main() {
 
 ### Integration into widget hierarchy
 
-To be able to use the generated methods using the context, you need to embed the DepGen instance
-into the widget hierarchy.
+To be able to use the generated methods using the context, you need to embed the DepProvider 
+instance into the widget hierarchy.
 
-```
+```dart
 void main() {
     ...
     final environment = DepGenEnvironment();
     environment.registry<PetsRepository>(PetsRepository());
     environment.registry<ShopRepository>(ShopRepository());
     ...
-    runApp(DepGen(
+    runApp(DepProvider(
         environment: environment,
         child: Application(),
     ));
@@ -193,11 +193,11 @@ That's all, now you can use build methods to create class instances.
 
 To create instances of classes with injected dependencies, we need context. There are two ways:
 
-```
-final myPetLucky = DepGen.of(context).buildMyPet(name: 'Lucky');
+```dart
+final myPetLucky = DepProvider.of(context).buildMyPet(name: 'Lucky');
 ```
 
-```
+```dart
 final myPetChester = context.depGen().buildMyPet(name: 'Lucky');
 ```
 
@@ -224,10 +224,11 @@ class UserDetails {
 This build method will be generated:
 
 ```dart
-DepGen.of(context).
-buildUserDetails
-(
-id,username,userGroup: userGroup,)
+DepProvider.of(context).buildUserDetails(
+    id,
+    username,
+    userGroup: userGroup,
+)
 ,
 ```
 
