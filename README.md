@@ -124,9 +124,13 @@ Run code generator from project directory.
 ```
 
 On the command line, as a parameter, we specify the path to the file that will be generated:
+
 **-p lib/domain/environment**
+
 By default the generated file will be named:
+
 **builders.dep_gen.dart**
+
 > 💡 To convenience, the command to run code generation can be bound, since to create new or change old build methods you need to run it again (as is any case where code generation is used).
 
 At this stage, everything is ready - we have generated code that allows us to describe the
@@ -136,7 +140,7 @@ environment and create instances of classes with automatic substitution of depen
 
 Those instances of classes that will be substituted as dependencies cannot come from nowhere. We
 need to describe the so-called environment in which instances of these classes will be registered.
-The file generated in the last step contains the **DepGenEnvironment** class, which allows you to
+The file generated in the previous step contains the **DepGenEnvironment** class, which allows you to
 register the necessary dependencies. For this he has a special method:
 
 ```dart
