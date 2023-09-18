@@ -85,10 +85,10 @@ flutter pub add dep_gen
 
 ### Annotations placement
 
-To perform code generation, special annotations are used - **@DepGen** and **@DepArg**. The first (*
-DepGen*) annotation is used to indicate the class for which the build method will be created. The
-second annotation (*DepArg*) serves to indicate which dependencies need to be substituted
-automatically.
+To perform code generation, special annotations are used - **@DepGen** and **@DepArg**. The 
+first (*DepGen*) annotation is used to indicate the class for which the build method will be 
+created. The second annotation (*DepArg*) serves to indicate which dependencies need to be 
+substituted automatically.
 
 > 💡 Annotations in Dart are a way of adding metadata to code elements such as classes, methods, variables, and parameters. Annotations are used to provide additional information about the code element, such as its intended use, expected behavior, or implementation details.
 > Dart annotations are represented using the '@' symbol followed by the name of the annotation.
@@ -224,12 +224,13 @@ class UserDetails {
 This build method will be generated:
 
 ```dart
-DepProvider.of(context).buildUserDetails(
-    id,
-    username,
-    userGroup: userGroup,
-)
-,
+{
+    DepProvider.of(context).buildUserDetails(
+        id,
+        username,
+        userGroup: userGroup,
+    )
+}
 ```
 
 Other parameters marked with a special annotation will be substituted automatically from the
