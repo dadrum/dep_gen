@@ -147,12 +147,18 @@ import 'package:flutter/widgets.dart';
 
   // write used packages
   usedExternalPaths.forEach((key, value) => outputSink.write('$value\n'));
+  late final String pathSeparator;
+  try {
+    pathSeparator = Platform.pathSeparator;
+  } on Object {
+    pathSeparator = '/';
+  }
 
   // convert all import files to package dependencies
   Set<String> usedPaths = allClassesPath.entries
       .map((e) => e.value.substring(currentPathLength))
       .map((e) =>
-          '${e.replaceFirst('${Platform.pathSeparator}lib${Platform.pathSeparator}', 'import \'package:$packageName/')}\';')
+          '${e.replaceFirst('${pathSeparator}lib$pathSeparator', 'import \'package:$packageName/')}\';')
       .map((e) => e.replaceAll(Platform.pathSeparator, '/'))
       .toSet();
 
@@ -175,10 +181,19 @@ Future<void> recursiveDirectory(
   List<FileSystemEntity> content = await (dirContents(directory));
 
   if (isTop) {
+
+
+    late final String pathSeparator;
+    try {
+      pathSeparator = Platform.pathSeparator;
+    } on Object {
+      pathSeparator = '/';
+    }
+
     content = content
         .where((element) =>
-            (element.path.endsWith('${Platform.pathSeparator}lib') ||
-                element.path.endsWith('${Platform.pathSeparator}pubspec.yaml')))
+            (element.path.endsWith('${pathSeparator}lib') ||
+                element.path.endsWith('${pathSeparator}pubspec.yaml')))
         .toList();
   }
 

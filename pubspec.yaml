@@ -1,17 +1,17 @@
 name: dep_gen
 description: This package allows to implement dependency injection in a project.
-version: 1.1.2
+version: 1.1.4
 homepage: https://github.com/dadrum/dep_gen.git
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
 
 dependencies:
-  analyzer: ^6.0.0
+  analyzer: 6.2.0
   args: ^2.4.2
-  path: ^1.8.2
+  path: ^1.8.3
   yaml: ^3.1.2
 
 dev_dependencies:
-  lints: ^2.1.1
+  lints: ^3.0.0
 

@@ -1,3 +1,7 @@
+## 1.1.4
+
+- Analyzer's version updated.
+
 ## 1.1.2
 
 - Removed the "-c" command line option. Now the generated class is always called DepProvider.
