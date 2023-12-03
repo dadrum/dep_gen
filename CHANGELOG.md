@@ -1,3 +1,7 @@
+## 1.1.5
+
+- Fixed generator for a simple formal parameter
+
 ## 1.1.4
 
 - Analyzer's version updated.

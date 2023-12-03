@@ -181,8 +181,6 @@ Future<void> recursiveDirectory(
   List<FileSystemEntity> content = await (dirContents(directory));
 
   if (isTop) {
-
-
     late final String pathSeparator;
     try {
       pathSeparator = Platform.pathSeparator;
@@ -191,9 +189,8 @@ Future<void> recursiveDirectory(
     }
 
     content = content
-        .where((element) =>
-            (element.path.endsWith('${pathSeparator}lib') ||
-                element.path.endsWith('${pathSeparator}pubspec.yaml')))
+        .where((element) => (element.path.endsWith('${pathSeparator}lib') ||
+            element.path.endsWith('${pathSeparator}pubspec.yaml')))
         .toList();
   }
 
@@ -429,12 +426,13 @@ Future<void> writeConstructorsMethod(
             }
 
             if (param.isNamed) {
-              if (param.isOptional) {
-                outArgs.write(
-                    "\n      $paramName: _env.mayBeGet<$declaredPackageName$type>(),");
-              } else {
-                outArgs.write("\n      _env.g<$declaredPackageName$type>(),");
-              }
+              // if (param.isOptional) {
+              outArgs.write(
+                  "\n      $paramName: _env.g<$declaredPackageName$type>(),");
+                  // "\n      $paramName: _env.mayBeGet<$declaredPackageName$type>(),");
+              // } else {
+              //   outArgs.write("\n      _env.g<$declaredPackageName$type>(),");
+              // }
             } else {
               outArgs
                   .write("\n      _env.mayBeGet<$declaredPackageName$type>(),");
