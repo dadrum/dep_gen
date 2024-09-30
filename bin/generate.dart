@@ -429,7 +429,7 @@ Future<void> writeConstructorsMethod(
               // if (param.isOptional) {
               outArgs.write(
                   "\n      $paramName: _env.g<$declaredPackageName$type>(),");
-                  // "\n      $paramName: _env.mayBeGet<$declaredPackageName$type>(),");
+              // "\n      $paramName: _env.mayBeGet<$declaredPackageName$type>(),");
               // } else {
               //   outArgs.write("\n      _env.g<$declaredPackageName$type>(),");
               // }
@@ -557,7 +557,7 @@ Future<void> writeConstructorsMethod(
 
 // -----------------------------------------------------------------------------
 void writeHeader(StringBuffer outputSink) {
-  outputSink.write(""" 
+  outputSink.write("""
 
 /// The environment in which all used dependency instances are configured
 @immutable

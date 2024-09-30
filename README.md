@@ -15,8 +15,8 @@ Instead of specifying dependencies manually:
 class MyPet{
     MyPet({
         required String name,
-        required PetsRepository petsRepository,
-        required ShopRepository shopRepository,
+        required IPetsRepository petsRepository,
+        required IShopRepository shopRepository,
     }) {
         … some magic…
     }
@@ -26,8 +26,8 @@ void main() {
     …
     final pet = MyPet(
         name: 'Lucky',
-        petsRepository: context.read<PetsRepository>(),
-        shopRepository: context.read<ShopRepository>(),
+        petsRepository: context.read<IPetsRepository>(),
+        shopRepository: context.read<IShopRepository>(),
     );
     …
 }
@@ -41,8 +41,8 @@ missing parameters (if any):
 class MyPet{
     MyPet({
         required String name,
-        @DepArg() required PetsRepository petsRepository,
-        @DepArg() required ShopRepository shopRepository,
+        @DepArg() required IPetsRepository petsRepository,
+        @DepArg() required IShopRepository shopRepository,
     }) {
         … some magic…
     }
@@ -100,8 +100,8 @@ Example code
 class MyPet{
     MyPet({
         required String name,
-        @DepArg() required PetsRepository petsRepository,
-        @DepArg() required ShopRepository shopRepository,
+        @DepArg() required IPetsRepository petsRepository,
+        @DepArg() required IShopRepository shopRepository,
     }) {
         … some magic…
     }
@@ -154,21 +154,16 @@ instance of the environment.
 DepGenEnvironment lock()
 ```
 
-A simple way to describe the environment. This code is usually used before the *runApp* in *main()*
-method
+A simple way to describe the environment.
 
 ```dart
-void main() {
-    ...
-    final environment = DepGenEnvironment();
-    environment.registry<PetsRepository>(PetsRepository());
-    environment.registry<ShopRepository>(ShopRepository());
-    ...
-    runApp(...);
+class Environment extends DepGenEnvironment {
+  void prepare() {
+    registry<IPetsRepository>(PetsRepository());
+    registry<IShopRepository>(ShopRepository());
+  }
 }
 ```
-
-> ❕ In the example, for simplicity, the Dependency Inversion Principle is ignored
 
 > 💡 To keep the code clean, you can also extend the *DepGenEnvironment* class and place the entire implementation of the environment logic into it. There is a code example in the package description.
 
@@ -179,15 +174,13 @@ instance into the widget hierarchy.
 
 ```dart
 void main() {
-    ...
-    final environment = DepGenEnvironment();
-    environment.registry<PetsRepository>(PetsRepository());
-    environment.registry<ShopRepository>(ShopRepository());
-    ...
-    runApp(DepProvider(
-        environment: environment,
-        child: Application(),
-    ));
+  final environment = Environment()..prepare();
+  runApp(
+    DepProvider(
+      environment: environment.lock(),
+      child: Application(),
+    ),
+  );
 }
 ```
 
