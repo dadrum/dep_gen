@@ -1,3 +1,7 @@
+## 1.1.7
+
+- Updated versions of dependencies
+
 ## 1.1.6
 
 - Updated versions of dependencies

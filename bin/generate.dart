@@ -123,6 +123,7 @@ void handleLangFiles(GenerateOptions options) async {
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
 // ignore_for_file: type=lint
+// coverage:ignore-start
 
 import 'dart:collection';
 
@@ -172,6 +173,10 @@ import 'package:flutter/widgets.dart';
   outputSink.write(outBuffer.toString());
   print('  .. write to file completed');
 
+  outputSink.write("""
+  
+// coverage:ignore-end
+  """);
   outputSink.close();
 }
 
