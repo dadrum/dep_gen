@@ -1,3 +1,7 @@
+## 1.1.9
+
+- Updated versions of dependencies
+
 ## 1.1.8
 
 - DepGenEnvironment is now available from DepProvider
