@@ -1,5 +1,9 @@
 ## 1.1.9
 
+- Added the 'useBuilders' parameter in the @DepArg annotation
+
+## 1.1.9
+
 - Updated versions of dependencies
 
 ## 1.1.8

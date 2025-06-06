@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:analyzer/dart/ast/syntactic_entity.dart';
 import 'package:args/args.dart';
 import 'package:yaml/yaml.dart';
 import 'package:analyzer/dart/analysis/utilities.dart';
@@ -12,6 +13,7 @@ import 'package:path/path.dart' as path;
 final String annotationDepGen = 'DepGen';
 final String annotationDepArg = 'DepArg';
 // keywords
+final String argumentForDepArgUseBuilders = 'useBuilders';
 final String argumentForDepArgPackage = 'package';
 
 // Class name -> Class path
@@ -27,9 +29,23 @@ Set<String> usedClasses = {};
 // Founded package name
 String packageName = '';
 
+// какие билдеры будут генерироваться напрямую и какие могут быть через наследование
+final List<String> possibleBuildersForClass = [];
+// Interface -> Implementation
+final Map<String, String> possibleImplementationForInterface = {};
+
 extension IterableModifier<E> on Iterable<E> {
   E? firstWhereOrNull(bool Function(E) test) =>
       cast<E?>().firstWhere((v) => v != null && test(v), orElse: () => null);
+}
+
+final List<ConstructorsMaker> constructorsMaker = [];
+
+class ConstructorsMaker {
+  final CompilationUnitMember declaration;
+  final ConstructorDeclaration constructor;
+
+  ConstructorsMaker({required this.declaration, required this.constructor});
 }
 
 void main(List<String> args) {
@@ -111,6 +127,11 @@ void handleLangFiles(GenerateOptions options) async {
   // recursive directory parse and write data to outBuffer
   print('  .. start project parsing from \'$current\'');
   await recursiveDirectory(current, outBuffer, true);
+
+  for (final maker in constructorsMaker) {
+    await writeConstructorsMethod(
+        maker.declaration, maker.constructor, outBuffer);
+  }
 
   // write common file footer
   writeFooter(outBuffer);
@@ -281,13 +302,42 @@ Future<void> processDartFile(File inFile, StringBuffer outputSink) async {
           .where((annotation) => annotation.name.name == annotationDepGen)
           .isNotEmpty);
 
+  for (final f in declarationsWithDepGenAnnotation) {
+    // ищем название класса
+    Iterable<SyntacticEntity> searchEntity = f.childEntities
+        .where((e) => e.runtimeType.toString().contains('StringToken'));
+    if (searchEntity.isEmpty) {
+      continue;
+    }
+    final implClassName = searchEntity.first.toString();
+    possibleBuildersForClass.add(implClassName);
+
+    // ext
+    searchEntity = f.childEntities.whereType<ExtendsClause>();
+    if (searchEntity.isNotEmpty) {
+      final name = searchEntity.first as ExtendsClause;
+      possibleImplementationForInterface[name.superclass.toString()] =
+          implClassName;
+    }
+
+    // impl
+    searchEntity = f.childEntities.whereType<ImplementsClause>();
+    if (searchEntity.isNotEmpty) {
+      for (final impl in (searchEntity.first as ImplementsClause).interfaces) {
+        possibleImplementationForInterface[impl.toString()] = implClassName;
+      }
+    }
+  }
+
   // for every class with declared constructors...
   for (final declaration in declarationsWithDepGenAnnotation) {
     final constructors =
         declaration.childEntities.whereType<ConstructorDeclaration>();
 
     for (final constructor in constructors) {
-      await writeConstructorsMethod(declaration, constructor, outputSink);
+      constructorsMaker.add(ConstructorsMaker(
+          declaration: declaration, constructor: constructor));
+      // await writeConstructorsMethod(declaration, constructor, outputSink);
     }
   }
 }
@@ -392,28 +442,43 @@ Future<void> writeConstructorsMethod(
           .isNotEmpty) {
         // annotationDepArg
         // find external package argument in DepArg
-        final argument = param.parameter.metadata
-            .firstWhereOrNull((e) => true)
-            ?.arguments
-            ?.childEntities
-            .whereType<NamedExpression>()
-            .firstWhereOrNull(
-                (e) => e.beginToken.lexeme == argumentForDepArgPackage);
+
+        // явное указание пакета
         String? declaredPackageName;
-        if (argument != null) {
-          // add founded package import to used imports list
-          foundedExternalPaths.entries.where((e) {
-            declaredPackageName = argument.endToken.lexeme
-                .replaceAll('\'', '')
-                .replaceAll('"', '');
-            return e.key == declaredPackageName;
-          }).forEach((e) => usedExternalPaths.addEntries([e]));
+
+        // явное указание билдера для зависимости
+        bool? ownBuilder;
+
+        // перебираем параметры
+        final expressions = param.parameter.metadata
+                .firstWhereOrNull((e) => true)
+                ?.arguments
+                ?.childEntities
+                .whereType<NamedExpression>() ??
+            [];
+        for (final expression in expressions) {
+          // argumentForDepArgPackage
+          if (expression.beginToken.lexeme == argumentForDepArgPackage) {
+            // add founded package import to used imports list
+            foundedExternalPaths.entries.where((e) {
+              declaredPackageName = expression.endToken.lexeme
+                  .replaceAll('\'', '')
+                  .replaceAll('"', '');
+              return e.key == declaredPackageName;
+            }).forEach((e) => usedExternalPaths.addEntries([e]));
+            if (declaredPackageName != null) {
+              declaredPackageName = '$declaredPackageName.';
+            } else {
+              declaredPackageName = '';
+            }
+          }
+          // argumentForDepArgUseBuilders
+          if (expression.beginToken.lexeme == argumentForDepArgUseBuilders) {
+            // add founded package import to used imports list
+            ownBuilder = bool.tryParse(expression.endToken.lexeme) ?? false;
+          }
         }
-        if (declaredPackageName != null) {
-          declaredPackageName = '$declaredPackageName.';
-        } else {
-          declaredPackageName = '';
-        }
+        declaredPackageName ??= '';
 
         // param has DepArg annotation
         if (param.childEntities.first is SimpleFormalParameter) {
@@ -424,23 +489,37 @@ Future<void> writeConstructorsMethod(
           if (namedTypes.isNotEmpty) {
             String type = '${namedTypes.first.name2}';
             type.replaceAll('?', '');
-
             if ((declaredPackageName?.isNotEmpty ?? false) &&
                 type.startsWith(declaredPackageName!)) {
               type = type.replaceFirst(declaredPackageName!, '');
             }
 
+            String? builder;
+            if (ownBuilder ?? false) {
+              if (possibleBuildersForClass.contains(type)) {
+                builder = 'build$type()';
+              } else {
+                final alternativeBuilder = possibleImplementationForInterface
+                    .entries
+                    .firstWhereOrNull((e) => e.key == type)
+                    ?.value;
+                if (alternativeBuilder != null) {
+                  builder = 'build$alternativeBuilder()';
+                }
+              }
+            }
+            if (builder == null) {
+              if (param.isNamed) {
+                builder = "_env.g<$declaredPackageName$type>()";
+              } else {
+                builder = "_env.mayBeGet<$declaredPackageName$type>()";
+              }
+            }
+
             if (param.isNamed) {
-              // if (param.isOptional) {
-              outArgs.write(
-                  "\n      $paramName: _env.g<$declaredPackageName$type>(),");
-              // "\n      $paramName: _env.mayBeGet<$declaredPackageName$type>(),");
-              // } else {
-              //   outArgs.write("\n      _env.g<$declaredPackageName$type>(),");
-              // }
+              outArgs.write("\n      $paramName: $builder,");
             } else {
-              outArgs
-                  .write("\n      _env.mayBeGet<$declaredPackageName$type>(),");
+              outArgs.write("\n      $builder,");
             }
             usedClasses.add(type);
           }
@@ -457,18 +536,42 @@ Future<void> writeConstructorsMethod(
               type = type.replaceFirst(declaredPackageName!, '');
             }
 
-            if (param.isOptional) {
-              if (param.isNamed) {
-                outArgs.write(
-                    "\n      $paramName: _env.mayBeGet<$declaredPackageName$type>(),");
+            String? builder;
+            if (ownBuilder ?? false) {
+              if (possibleBuildersForClass.contains(type)) {
+                builder = 'build$type()';
               } else {
-                outArgs.write(
-                    "\n      _env.mayBeGet<$declaredPackageName$type>(),");
+                final alternativeBuilder = possibleImplementationForInterface
+                    .entries
+                    .firstWhereOrNull((e) => e.key == type)
+                    ?.value;
+                if (alternativeBuilder != null) {
+                  builder = 'build$alternativeBuilder()';
+                }
+              }
+            }
+            if (param.isOptional) {
+              if (builder == null) {
+                if (param.isNamed) {
+                  builder = "_env.g<$declaredPackageName$type>()";
+                } else {
+                  builder = "_env.mayBeGet<$declaredPackageName$type>()";
+                }
               }
             } else {
-              outArgs.write(
-                  "\n      $paramName: _env.g<$declaredPackageName$type>(),");
+              builder = "_env.g<$declaredPackageName$type>()";
             }
+
+            if (param.isOptional) {
+              if (param.isNamed) {
+                outArgs.write("\n      $paramName: $builder,");
+              } else {
+                outArgs.write("\n      $builder,");
+              }
+            } else {
+              outArgs.write("\n      $paramName: $builder,");
+            }
+
             usedClasses.add(type);
           }
         }

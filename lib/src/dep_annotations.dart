@@ -11,11 +11,18 @@ class DepGen {
 /// Annotation of class constructor arguments. Determines which arguments
 /// should be replaced with dependencies using a code generator
 class DepArg {
-  const DepArg({this.package});
+  const DepArg({this.package, this.useBuilders});
 
   /// If parameter type is described in the external package;
   /// import 'package_name/package_name.dart' as xxx
   /// ...
   /// @DepArg(package: 'xxx')
   final String? package;
+
+  /// используется для тех зависимостей, которые явно не регистрировались в
+  /// сервис-локаторе. Для них можно попытаться использовать сгенерированный
+  /// билдер
+  ///
+  /// @DepArg(useBuilders: true )
+  final bool? useBuilders;
 }
