@@ -234,4 +234,22 @@ Other parameters marked with a special annotation will be substituted automatica
 environment.
 
 
+## Importing External Packages
+
+The code generator supports automatic import of external dependencies into generated files. This allows you to use classes and functionality from third-party packages in your generated code.
+
+### Usage
+
+To import external packages, use the `-i` flag followed by a comma-separated list of package names:
+
+```bash
+ -i package1name,package2name
+```
+### Behavior
+*The generator will only include imports for packages that are actually used in the generated code
+* Unreferenced packages specified with -i will be automatically filtered out
+* The import statements will be properly formatted according to the target language's conventions
+
+
+
 

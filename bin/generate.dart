@@ -26,6 +26,9 @@ Map<String, String> usedExternalPaths = {};
 // User classes
 Set<String> usedClasses = {};
 
+// User classes
+Set<String> importedPackages = {};
+
 // Founded package name
 String packageName = '';
 
@@ -89,6 +92,13 @@ ArgParser _generateArgParser(GenerateOptions? generateOptions) {
       defaultsTo: 'lib/generated',
       callback: (String? x) => generateOptions!.outputPath = x,
       help: 'Output file path]');
+
+  parser.addOption('imported-packages',
+      abbr: 'i',
+      defaultsTo: '',
+      callback: (String? x) =>
+          generateOptions!.packagesToImport = x?.split(','),
+      help: 'Array of packages to import');
   return parser;
 }
 
@@ -96,10 +106,11 @@ ArgParser _generateArgParser(GenerateOptions? generateOptions) {
 class GenerateOptions {
   String? outputFile;
   String? outputPath;
+  Iterable<String>? packagesToImport;
 
   @override
   String toString() {
-    return 'outputFile: $outputFile outputPath: $outputPath';
+    return 'outputFile: $outputFile outputPath: $outputPath packagesToImport: $packagesToImport';
   }
 }
 
@@ -126,7 +137,7 @@ void handleLangFiles(GenerateOptions options) async {
 
   // recursive directory parse and write data to outBuffer
   print('  .. start project parsing from \'$current\'');
-  await recursiveDirectory(current, outBuffer, true);
+  await recursiveDirectory(options, current, outBuffer, true);
 
   for (final maker in constructorsMaker) {
     await writeConstructorsMethod(
@@ -155,6 +166,11 @@ import 'package:flutter/widgets.dart';
 // **************************************************************************
 
 """);
+
+  // write external packages list
+  for(final package in importedPackages) {
+    outputSink.write('$package\n');
+  }
 
   // remove nullable signs
   usedClasses = usedClasses.map((e) => e.replaceAll('?', '')).toSet();
@@ -202,8 +218,8 @@ import 'package:flutter/widgets.dart';
 }
 
 // -----------------------------------------------------------------------------
-Future<void> recursiveDirectory(
-    Directory directory, StringBuffer outputSink, bool isTop) async {
+Future<void> recursiveDirectory(GenerateOptions options, Directory directory,
+    StringBuffer outputSink, bool isTop) async {
   List<FileSystemEntity> content = await (dirContents(directory));
 
   if (isTop) {
@@ -226,7 +242,7 @@ Future<void> recursiveDirectory(
     }
 
     if (entity is Directory) {
-      await recursiveDirectory(entity, outputSink, false);
+      await recursiveDirectory(options, entity, outputSink, false);
       continue;
     }
     if (entity is! File) {
@@ -255,7 +271,7 @@ Future<void> recursiveDirectory(
       continue;
     }
 
-    await processDartFile(entity, outputSink);
+    await processDartFile(options, entity, outputSink);
   }
 }
 
@@ -272,7 +288,8 @@ Future<List<FileSystemEntity>> dirContents(Directory dir) async {
 }
 
 // -----------------------------------------------------------------------------
-Future<void> processDartFile(File inFile, StringBuffer outputSink) async {
+Future<void> processDartFile(
+    GenerateOptions options, File inFile, StringBuffer outputSink) async {
   final fileContent = inFile.readAsStringSync();
 
   final result = parseString(content: fileContent);
@@ -282,6 +299,17 @@ Future<void> processDartFile(File inFile, StringBuffer outputSink) async {
     for (var e in directive.childEntities) {
       if (e.runtimeType.toString().contains('SimpleIdentifierImpl')) {
         foundedExternalPaths['$e'] = directive.toSource();
+      }
+    }
+  }
+
+  // add used external packages
+  if (options.packagesToImport?.isNotEmpty ?? false) {
+    for (var directive in result.unit.directives) {
+      final directiveString = '$directive';
+      final contains = options.packagesToImport!.any((e) => directiveString.contains('package:$e'));
+      if(contains) {
+        importedPackages.add(directiveString);
       }
     }
   }

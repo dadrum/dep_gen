@@ -1,4 +1,8 @@
-## 1.1.9
+## 1.1.11
+
+- Added "-i" command line option to use external packages in the generation
+
+## 1.1.10
 
 - Added the 'useBuilders' parameter in the @DepArg annotation
 
