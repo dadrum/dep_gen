@@ -1,8 +1,12 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:analyzer/dart/analysis/analysis_context_collection.dart';
+import 'package:analyzer/dart/analysis/results.dart';
 import 'package:analyzer/dart/ast/syntactic_entity.dart';
+import 'package:analyzer/error/error.dart';
 import 'package:args/args.dart';
+import 'package:path/path.dart';
 import 'package:yaml/yaml.dart';
 import 'package:analyzer/dart/analysis/utilities.dart';
 import 'package:analyzer/dart/ast/ast.dart';
@@ -128,7 +132,7 @@ void handleLangFiles(GenerateOptions options) async {
     generatedFile.deleteSync();
     generatedFile.createSync(recursive: true);
   }
-  print('  .. generated file = $generatedFile');
+  print('ℹ️  Generated file = $generatedFile');
   // prepare string builder for parse
   StringBuffer outBuffer = StringBuffer();
 
@@ -136,7 +140,7 @@ void handleLangFiles(GenerateOptions options) async {
   writeHeader(outBuffer);
 
   // recursive directory parse and write data to outBuffer
-  print('  .. start project parsing from \'$current\'');
+  print('🚀  Start project parsing from \'$current\'');
   await recursiveDirectory(options, current, outBuffer, true);
 
   for (final maker in constructorsMaker) {
@@ -176,8 +180,6 @@ import 'package:flutter/widgets.dart';
   usedClasses = usedClasses.map((e) => e.replaceAll('?', '')).toSet();
 
   // remove all unused classes
-  print('  .. remove all unused classes');
-
   final int currentPathLength = current.path.length;
   allClassesPath.removeWhere((key, value) {
     return !usedClasses.contains(key);
@@ -208,13 +210,19 @@ import 'package:flutter/widgets.dart';
   // write to file all generated build methods
   outputSink.write('\n');
   outputSink.write(outBuffer.toString());
-  print('  .. write to file completed');
-
   outputSink.write("""
   
 // coverage:ignore-end
   """);
   outputSink.close();
+
+  // second check - remove unused imports
+  print('🧹  Remove unused imports');
+  await Future.delayed(const Duration(seconds: 2));
+
+  await removeUnusedImports(outputPath.path);
+  print('🏁  Completed');
+
 }
 
 // -----------------------------------------------------------------------------
@@ -818,4 +826,76 @@ String? getPropertyType(
     }
   }
   return null;
+}
+
+// -----------------------------------------------------------------------------
+/// Removes unused and unnecessary imports (as detected by the analyzer)
+/// from the given Dart file.
+Future<void> removeUnusedImports(String filePath) async {
+  final file = File(filePath);
+  if (!file.existsSync()) {
+    throw Exception('File not found: $filePath');
+  }
+
+  // Convert to absolute, normalized path
+  final absoluteFilePath = normalize(absolute(filePath));
+
+  // Root of the project (directory with pubspec.yaml)
+  final rootPath = _findProjectRoot(absoluteFilePath);
+
+  // Create a full analysis context
+  final collection = AnalysisContextCollection(includedPaths: [rootPath]);
+  final context = collection.contextFor(absoluteFilePath);
+
+  // Fully resolve the file (same as IDE)
+  final result = await context.currentSession.getResolvedUnit(absoluteFilePath);
+  if (result is! ResolvedUnitResult) {
+    throw Exception('Failed to resolve: $absoluteFilePath');
+  }
+  // Collect unused/unnecessary import diagnostics
+  final importErrors = result.errors.where((AnalysisError e) {
+    final name = e.errorCode.name;
+    return name == 'UNUSED_IMPORT' || name == 'UNNECESSARY_IMPORT';
+  }).toList();
+
+  if (importErrors.isEmpty) {
+    print('✅  No unused imports found in $filePath');
+    return;
+  }
+
+  final content = await file.readAsString();
+  final lines = content.split('\n');
+  final linesToRemove = <int>{};
+
+  for (final error in importErrors) {
+    final lineNumber = _getLineNumber(content, error.offset);
+    linesToRemove.add(lineNumber);
+  }
+
+  // Remove import lines
+  final filtered = [
+    for (var i = 0; i < lines.length; i++)
+      if (!linesToRemove.contains(i + 1)) lines[i],
+  ].join('\n');
+
+  await file.writeAsString(filtered);
+  print('✅  Removed ${linesToRemove.length} unused import(s)');
+}
+
+/// Calculates the line number of a given character offset.
+int _getLineNumber(String content, int offset) {
+  return '\n'.allMatches(content.substring(0, offset)).length + 1;
+}
+
+/// Finds the nearest ancestor folder containing a pubspec.yaml.
+/// This helps the analyzer find the correct project root.
+String _findProjectRoot(String filePath) {
+  var dir = Directory(filePath).parent;
+  while (dir.path != dir.parent.path) {
+    if (File(join(dir.path, 'pubspec.yaml')).existsSync()) {
+      return dir.path;
+    }
+    dir = dir.parent;
+  }
+  throw Exception('Could not find project root for $filePath');
 }

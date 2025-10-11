@@ -1,3 +1,7 @@
+## 1.1.12
+
+- Added automatic removal of unused imports in generated Dart file
+
 ## 1.1.11
 
 - Added "-i" command line option to use external packages in the generation
