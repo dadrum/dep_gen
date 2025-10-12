@@ -1,3 +1,6 @@
+## 1.2.0
+- Code parsing error details have been added
+
 ## 1.1.12
 
 - Added automatic removal of unused imports in generated Dart file
