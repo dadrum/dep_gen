@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'dart:async';
 import 'dart:io';
 
@@ -7,20 +9,19 @@ import 'package:analyzer/dart/ast/syntactic_entity.dart';
 import 'package:analyzer/dart/ast/token.dart';
 import 'package:yaml/yaml.dart';
 
-import 'generation_context.dart';
-import 'dep_gen_options.dart';
 import 'constructor_to_generate.dart';
 import 'core.dart';
+import 'dep_gen_options.dart';
+import 'generation_context.dart';
 
 // =============================================================================
-// АНАЛИЗАТОР ПРОЕКТА
+// Project Analyzer
 // =============================================================================
 
 class ProjectAnalyzer {
+  ProjectAnalyzer(this.context, this.options);
   final GenerationContext context;
   final DepGenOptions options;
-
-  ProjectAnalyzer(this.context, this.options);
 
   Future<void> analyzeProject() async {
     final current = Directory.current;
@@ -40,8 +41,9 @@ class ProjectAnalyzer {
       }
 
       content = content
-          .where((element) => element.path.endsWith('${pathSeparator}lib') ||
-          element.path.endsWith('${pathSeparator}pubspec.yaml'))
+          .where((element) =>
+              element.path.endsWith('${pathSeparator}lib') ||
+              element.path.endsWith('${pathSeparator}pubspec.yaml'))
           .toList();
     }
 
@@ -81,7 +83,8 @@ class ProjectAnalyzer {
           .where((element) => element.key == 'name')
           .map((e) => e.value);
       if (dd.isEmpty) {
-        throw UnimplementedError('package name not found in \'${entity.path}\'');
+        throw UnimplementedError(
+            'package name not found in \'${entity.path}\'');
       }
       context.packageName = '${dd.first}';
     }
@@ -90,39 +93,32 @@ class ProjectAnalyzer {
   Future<List<FileSystemEntity>> _dirContents(Directory dir) async {
     final files = <FileSystemEntity>[];
     final completer = Completer<List<FileSystemEntity>>();
-    dir.list(recursive: false)
-    .listen(
+    dir.list(recursive: false).listen(
           files.add,
-      onDone: () => completer.complete(files),
-    );
+          onDone: () => completer.complete(files),
+        );
     return completer.future;
   }
 
   Future<void> _processDartFile(File inFile) async {
     final fileContent = inFile.readAsStringSync();
-    // отключаем выброс исключения
+    // disabling exception throwing
     final result = parseString(
-        content: fileContent,
-        path: inFile.path,
-        throwIfDiagnostics: false
-    );
+        content: fileContent, path: inFile.path, throwIfDiagnostics: false);
 
     // ----------------------------------------------------
-    // Обработка синтаксических ошибок
+    // Syntax error handling
     if (result.errors.isNotEmpty) {
       print('💥  Syntax errors were found in the file: ${inFile.path}');
       for (final error in result.errors) {
-        // Получаем строку и колонку по смещению (offset)
+        // We get the row and column by offset
         final lineInfo = result.lineInfo;
         final location = lineInfo.getLocation(error.offset);
-
-        print('    -> row: ${location.lineNumber}, column: ${location.columnNumber}');
+        print(
+            '    -> row: ${location.lineNumber}, column: ${location.columnNumber}');
         print('    [${error.errorCode.name}] ${error.message}');
-        // Опционально: можно прервать обработку этого файла
-        // или вообще остановить кодогенератор, если ошибка критична.
       }
-      // Если файл содержит синтаксические ошибки, которые могут помешать
-      // дальнейшему анализу AST, его можно пропустить.
+      // The file contains syntax errors, so we stop working
       throw ArgumentError('Error in file analysis');
     }
     // ----------------------------------------------------
@@ -160,7 +156,7 @@ class ProjectAnalyzer {
 
     // 4. Select declarations with DepGen annotation
     final declarationsWithDepGenAnnotation = result.unit.declarations.where(
-            (declaration) => declaration.metadata
+        (declaration) => declaration.metadata
             .where((annotation) => annotation.name.name == annotationDepGen)
             .isNotEmpty);
 
@@ -185,19 +181,18 @@ class ProjectAnalyzer {
       searchEntity = f.childEntities.whereType<ImplementsClause>();
       if (searchEntity.isNotEmpty) {
         for (final impl
-        in (searchEntity.first as ImplementsClause).interfaces) {
+            in (searchEntity.first as ImplementsClause).interfaces) {
           context.possibleImplementationForInterface[impl.toString()] =
               implClassName;
         }
       }
 
       // For every class with declared constructors...
-      final constructors =
-      f.childEntities.whereType<ConstructorDeclaration>();
+      final constructors = f.childEntities.whereType<ConstructorDeclaration>();
 
       for (final constructor in constructors) {
-        context.constructorsToGenerate.add(ConstructorToGenerate(
-            declaration: f, constructor: constructor));
+        context.constructorsToGenerate.add(
+            ConstructorToGenerate(declaration: f, constructor: constructor));
       }
     }
   }

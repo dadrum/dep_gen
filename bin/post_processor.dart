@@ -1,18 +1,18 @@
+// ignore_for_file: avoid_print
+
 import 'dart:io';
 
 import 'package:analyzer/dart/analysis/analysis_context_collection.dart';
 import 'package:analyzer/dart/analysis/results.dart';
-import 'package:analyzer/error/error.dart';
 import 'package:path/path.dart';
 
 // =============================================================================
-// ПОСТ-ПРОЦЕССОР
+// Post - Processor
 // =============================================================================
 
 class PostProcessor {
-  final File generatedFile;
-
   PostProcessor(this.generatedFile);
+  final File generatedFile;
 
   Future<void> removeUnusedImports() async {
     print('🧹  Remove unused imports');
@@ -39,7 +39,7 @@ class PostProcessor {
       throw Exception('Failed to resolve: $absoluteFilePath');
     }
     // Collect unused/unnecessary import diagnostics
-    final importErrors = result.errors.where((AnalysisError e) {
+    final importErrors = result.errors.where((e) {
       final name = e.errorCode.name;
       return name == 'UNUSED_IMPORT' || name == 'UNNECESSARY_IMPORT';
     }).toList();
@@ -83,5 +83,41 @@ class PostProcessor {
       dir = dir.parent;
     }
     throw Exception('Could not find project root for $filePath');
+  }
+
+  /// Executes code formatting using the system command 'dart format'.
+  Future<void> formatCode() async {
+    print('✨   Running code formatting...');
+
+    try {
+      // Use Process.run to execute the external command asynchronously.
+      // Allows finding 'dart' command in the system PATH
+      final result = await Process.run(
+        'dart',
+        ['format', generatedFile.path],
+        runInShell: true,
+      );
+
+      if (result.exitCode != 0) {
+        // If formatting failed (e.g., due to a remaining syntax error)
+        print('❌   Formatting failed for file ${generatedFile.path}:');
+        print(result.stderr);
+      } else {
+        // The dart format command typically prints the list of formatted files to stdout.
+        final output = result.stdout.toString().trim();
+        if (output.isNotEmpty) {
+          print('✅   Code successfully formatted.');
+        } else {
+          print('✅   Formatting completed (no changes needed).');
+        }
+      }
+    } on ProcessException catch (e) {
+      // Catch error if the 'dart' command itself could not be launched.
+      print(
+          '🚨   Could not execute the dart format command. Ensure Dart SDK is installed and in your PATH. Error: ${e.message}');
+    } on Object catch (e) {
+      // Catch any other unexpected errors during the process.
+      print('🚨   An unexpected error occurred during formatting: $e');
+    }
   }
 }

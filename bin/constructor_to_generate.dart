@@ -1,9 +1,9 @@
 import 'package:analyzer/dart/ast/ast.dart';
 
-/// Хранит информацию о конструкторе, который нужно сгенерировать.
+/// Stores information about the constructor that needs to be generated.
 class ConstructorToGenerate {
+  ConstructorToGenerate({required this.declaration, required this.constructor});
+
   final CompilationUnitMember declaration;
   final ConstructorDeclaration constructor;
-
-  ConstructorToGenerate({required this.declaration, required this.constructor});
 }

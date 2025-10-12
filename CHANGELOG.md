@@ -1,5 +1,11 @@
 ## 1.2.0
-- Code parsing error details have been added
+### Added
+- Detailed error reporting for code parsing issues
+- Regeneration instructions added to the generated file header
+- Code formatter integrated into the workflow
+- Generator code completely refactored for improved performance
+### Changed
+- Analyzer package dependency updated to support version ^7.7.1
 
 ## 1.1.12
 

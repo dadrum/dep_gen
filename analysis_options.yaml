@@ -193,7 +193,7 @@ linter:
     prefer_final_fields: true
     prefer_final_in_for_each: true
     avoid_relative_lib_imports: true
-    avoid_print: true
+    avoid_print: false
     avoid_slow_async_io: true
     avoid_types_as_parameter_names: true
     prefer_void_to_null: true

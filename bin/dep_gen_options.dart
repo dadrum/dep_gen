@@ -1,69 +1,66 @@
+// ignore_for_file: avoid_print
+
 import 'dart:io';
 
 import 'package:args/args.dart';
 
-/// Класс для хранения опций, переданных через аргументы командной строки.
-/// В соответствии с вашими предпочтениями, используем @immutable.
+/// A class for storing options passed through command-line arguments.
 class DepGenOptions {
-  final String outputFile;
-  final String outputPath;
-  final Iterable<String> packagesToImport;
-
-  const DepGenOptions({
+  DepGenOptions({
+    required this.commandLine,
     required this.outputFile,
     required this.outputPath,
     required this.packagesToImport,
   });
 
-  static DepGenOptions parse(List<String> args) {
+  DepGenOptions.parse(List<String> args) {
     if (args.length == 1 && (args[0] == '--help' || args[0] == '-h')) {
       _printHelperDisplay();
       exit(0);
     }
 
-    String outputFile = 'builders.dep_gen.dart';
-    String outputPath = 'lib/generated';
-    Iterable<String> packagesToImport = const [];
+    String prepareOutputFile = 'builders.dep_gen.dart';
+    String prepareOutputPath = 'lib/generated';
+    Iterable<String> preparePackagesToImport = const [];
 
     _generateArgParser(
-          (o) => outputFile = o!,
-          (p) => outputPath = p!,
-          (i) => packagesToImport = i?.split(',') ?? const [],
-    )
+      (o) => prepareOutputFile = o!,
+      (p) => prepareOutputPath = p!,
+      (i) => preparePackagesToImport = i?.split(',') ?? const [],
+    ).parse(args);
 
-    .parse(args);
-
-    return DepGenOptions(
-      outputFile: outputFile,
-      outputPath: outputPath,
-      packagesToImport: packagesToImport,
-    );
+    outputFile = prepareOutputFile;
+    outputPath = prepareOutputPath;
+    packagesToImport = preparePackagesToImport;
+    commandLine = args.join(' ');
   }
 
+  late final String commandLine;
+  late final String outputFile;
+  late final String outputPath;
+  late final Iterable<String> packagesToImport;
+
   static ArgParser _generateArgParser(
-      void Function(String?) setOutputFile,
-      void Function(String?) setOutputPath,
-      void Function(String?) setPackagesToImport,
-      ) {
+    void Function(String?) setOutputFile,
+    void Function(String?) setOutputPath,
+    void Function(String?) setPackagesToImport,
+  ) {
     final parser = ArgParser()
-
-    ..addOption('output-file',
-        abbr: 'o',
-        defaultsTo: 'builders.dep_gen.dart',
-        callback: setOutputFile,
-        help: 'Output file name')
-
-    ..addOption('output-path',
-        abbr: 'p',
-        defaultsTo: 'lib/generated',
-        callback: setOutputPath,
-        help: 'Output file path]')
-
-    ..addOption('imported-packages',
-        abbr: 'i',
-        defaultsTo: '',
-        callback: setPackagesToImport,
-        help: 'Array of packages to import');
+      ..addOption('output-file',
+          abbr: 'o',
+          defaultsTo: 'builders.dep_gen.dart',
+          callback: setOutputFile,
+          help: 'Output file name')
+      ..addOption('output-path',
+          abbr: 'p',
+          defaultsTo: 'lib/generated',
+          callback: setOutputPath,
+          help: 'Output file path]')
+      ..addOption('imported-packages',
+          abbr: 'i',
+          defaultsTo: '',
+          callback: setPackagesToImport,
+          help: 'Array of packages to import');
     return parser;
   }
 

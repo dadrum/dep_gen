@@ -1,10 +1,12 @@
+// ignore_for_file: avoid_print
+
 import 'dart:io';
 
-import 'dep_gen_options.dart';
 import 'dep_gen.dart';
+import 'dep_gen_options.dart';
 
 // =============================================================================
-// MAIN ФУНКЦИЯ
+// MAIN
 // =============================================================================
 
 void main(List<String> args) async {

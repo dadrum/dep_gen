@@ -1,6 +1,6 @@
 import 'constructor_to_generate.dart';
 
-/// Хранилище для всех данных, собранных во время анализа проекта.
+/// A repository for all data collected during project analysis.
 class GenerationContext {
   GenerationContext();
 
