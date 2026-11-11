@@ -1,3 +1,7 @@
+## 1.2.2
+### Changed
+- Analyzer package dependency updated to support version ^14.0.0
+
 ## 1.2.0
 ### Added
 - Detailed error reporting for code parsing issues

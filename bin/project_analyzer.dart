@@ -20,6 +20,7 @@ import 'generation_context.dart';
 
 class ProjectAnalyzer {
   ProjectAnalyzer(this.context, this.options);
+
   final GenerationContext context;
   final DepGenOptions options;
 
@@ -116,7 +117,7 @@ class ProjectAnalyzer {
         final location = lineInfo.getLocation(error.offset);
         print(
             '    -> row: ${location.lineNumber}, column: ${location.columnNumber}');
-        print('    [${error.errorCode.name}] ${error.message}');
+        print('    [${error.diagnosticCode.lowerCaseName}] ${error.message}');
       }
       // The file contains syntax errors, so we stop working
       throw ArgumentError('Error in file analysis');
@@ -126,7 +127,7 @@ class ProjectAnalyzer {
     // 1. Collect all declared imports for potential external package use
     for (final directive in result.unit.directives) {
       for (final e in directive.childEntities) {
-        if (e.runtimeType.toString().contains('SimpleIdentifierImpl')) {
+        if (e.runtimeType.toString().contains('SimpleStringLiteral')) {
           context.foundedExternalPaths['$e'] = directive.toSource();
         }
       }
@@ -162,8 +163,9 @@ class ProjectAnalyzer {
 
     for (final f in declarationsWithDepGenAnnotation) {
       // Find class name
-      Iterable<SyntacticEntity> searchEntity = f.childEntities
-          .where((e) => e.runtimeType.toString().contains('StringToken'));
+      Iterable<SyntacticEntity> searchEntity = f.childEntities.where((e) =>
+          e.runtimeType.toString().contains('NameWithTypeParametersImpl'));
+
       if (searchEntity.isEmpty) continue;
 
       final implClassName = searchEntity.first.toString();
@@ -179,6 +181,7 @@ class ProjectAnalyzer {
 
       // impl
       searchEntity = f.childEntities.whereType<ImplementsClause>();
+
       if (searchEntity.isNotEmpty) {
         for (final impl
             in (searchEntity.first as ImplementsClause).interfaces) {
@@ -188,23 +191,26 @@ class ProjectAnalyzer {
       }
 
       // For every class with declared constructors...
-      final constructors = f.childEntities.whereType<ConstructorDeclaration>();
+      final constructors = f.childEntities.whereType<BlockClassBody>();
 
       for (final constructor in constructors) {
-        context.constructorsToGenerate.add(
-            ConstructorToGenerate(declaration: f, constructor: constructor));
+        constructor.childEntities
+            .whereType<ConstructorDeclaration>()
+            .forEach((c) {
+          context.constructorsToGenerate
+              .add(ConstructorToGenerate(declaration: f, constructor: c));
+        });
       }
     }
   }
 
   // get class identifier
   Token? _getClassIdentifier(CompilationUnitMember declaration) {
-    final declarationIdentifiers = declaration.childEntities
-        .whereType<Token>()
-        .where((token) => token.type == TokenType.IDENTIFIER);
+    final declarationIdentifiers =
+        declaration.childEntities.whereType<NameWithTypeParameters>();
     if (declarationIdentifiers.isEmpty) {
       return null;
     }
-    return declarationIdentifiers.first;
+    return declarationIdentifiers.first.typeName;
   }
 }

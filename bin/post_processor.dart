@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:analyzer/dart/analysis/analysis_context_collection.dart';
 import 'package:analyzer/dart/analysis/results.dart';
+import 'package:analyzer/dart/ast/ast.dart';
 import 'package:path/path.dart';
 
 // =============================================================================
@@ -28,49 +29,80 @@ class PostProcessor {
     // Root of the project (directory with pubspec.yaml)
     final rootPath = _findProjectRoot(absoluteFilePath);
 
-    // Create a full analysis context
     final collection = AnalysisContextCollection(includedPaths: [rootPath]);
-    final context = collection.contextFor(absoluteFilePath);
+    try {
+      final context = collection.contextFor(absoluteFilePath);
+      var removedCount = 0;
 
-    // Fully resolve the file (same as IDE)
-    final result =
-        await context.currentSession.getResolvedUnit(absoluteFilePath);
-    if (result is! ResolvedUnitResult) {
-      throw Exception('Failed to resolve: $absoluteFilePath');
+      while (true) {
+        final result =
+            await context.currentSession.getResolvedUnit(absoluteFilePath);
+        if (result is! ResolvedUnitResult) {
+          throw Exception('Failed to resolve: $absoluteFilePath');
+        }
+
+        final unresolvedImports = result.diagnostics.where((diagnostic) {
+          final name = diagnostic.diagnosticCode.lowerCaseName;
+          return name == 'uri_does_not_exist' ||
+              name == 'uri_has_not_been_generated';
+        }).where((diagnostic) => result.unit.directives
+            .whereType<ImportDirective>()
+            .any((directive) =>
+                directive.offset <= diagnostic.offset &&
+                diagnostic.offset < directive.end));
+        if (unresolvedImports.isNotEmpty) {
+          print('⚠️  Import cleanup stopped: some imports could not be '
+              'resolved in $absoluteFilePath.');
+          for (final diagnostic in unresolvedImports) {
+            print('    ${diagnostic.message}');
+          }
+          break;
+        }
+
+        final importErrors = result.diagnostics.where((diagnostic) {
+          final name = diagnostic.diagnosticCode.lowerCaseName;
+          return name == 'unused_import' || name == 'unnecessary_import';
+        });
+        if (importErrors.isEmpty) {
+          print('✅   Removed $removedCount unused or unnecessary import(s).');
+          print('    Import diagnostics may be disabled in analysis options.');
+          break;
+        }
+
+        final error = importErrors.first;
+        final directives = result.unit.directives.whereType<ImportDirective>();
+        final matching = directives.where(
+          (directive) =>
+              directive.offset <= error.offset && error.offset < directive.end,
+        );
+        if (matching.isEmpty) {
+          throw StateError(
+              'Import diagnostic at ${error.offset} does not match an import directive in $absoluteFilePath');
+        }
+
+        final directive = matching.first;
+        final content = result.content;
+        var start = directive.offset;
+        var end = directive.end;
+        final lineStart = content.lastIndexOf('\n', start - 1) + 1;
+        final nextLine = content.indexOf('\n', end);
+        final lineEnd = nextLine == -1 ? content.length : nextLine;
+        final before = content.substring(lineStart, start);
+        final after = content.substring(end, lineEnd);
+        if (RegExp(r'^[ \t]*$').hasMatch(before) &&
+            RegExp(r'^[ \t\r]*$').hasMatch(after)) {
+          start = lineStart;
+          end = nextLine == -1 ? lineEnd : nextLine + 1;
+        }
+        final updated = content.replaceRange(start, end, '');
+        await generatedFile.writeAsString(updated);
+        removedCount++;
+        context.changeFile(absoluteFilePath);
+        await context.applyPendingFileChanges();
+      }
+    } finally {
+      await collection.dispose();
     }
-    // Collect unused/unnecessary import diagnostics
-    final importErrors = result.errors.where((e) {
-      final name = e.errorCode.name;
-      return name == 'UNUSED_IMPORT' || name == 'UNNECESSARY_IMPORT';
-    }).toList();
-
-    if (importErrors.isEmpty) {
-      print('✅  No unused imports found in ${generatedFile.path}');
-      return;
-    }
-
-    final content = await generatedFile.readAsString();
-    final lines = content.split('\n');
-    final linesToRemove = <int>{};
-
-    for (final error in importErrors) {
-      final lineNumber = _getLineNumber(content, error.offset);
-      linesToRemove.add(lineNumber);
-    }
-
-    // Remove import lines
-    final filtered = [
-      for (var i = 0; i < lines.length; i++)
-        if (!linesToRemove.contains(i + 1)) lines[i],
-    ].join('\n');
-
-    await generatedFile.writeAsString(filtered);
-    print('✅   Removed ${linesToRemove.length} unused import(s)');
-  }
-
-  /// Calculates the line number of a given character offset.
-  int _getLineNumber(String content, int offset) {
-    return '\n'.allMatches(content.substring(0, offset)).length + 1;
   }
 
   /// Finds the nearest ancestor folder containing a pubspec.yaml.

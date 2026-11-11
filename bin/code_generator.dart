@@ -15,6 +15,7 @@ import 'generation_context.dart';
 // =============================================================================
 class CodeGenerator {
   CodeGenerator(this.context, this.options);
+
   final GenerationContext context;
   final DepGenOptions options;
 
@@ -54,7 +55,6 @@ class CodeGenerator {
       outputSink.write('$package\n');
     }
 
-    // Remove nullable signs and unused imports
     context.usedClasses
         .map((e) => e.replaceAll('?', ''))
         .forEach(context.usedClasses.add);
@@ -109,7 +109,6 @@ class CodeGenerator {
 import 'dart:collection';
 
 import 'package:flutter/widgets.dart';
-import 'package:meta/meta.dart';
 
 // **************************************************************************
 // DepGen code generator
@@ -221,7 +220,6 @@ class DepProvider extends InheritedWidget {
     // ********************
     // parse and prepare constructor's name
     String constructorName = constructor.name?.lexeme ?? '';
-
     final String constructorCall =
         (constructorName.isNotEmpty) ? '.$constructorName' : '';
     if (constructorName.isNotEmpty) {
@@ -238,6 +236,7 @@ class DepProvider extends InheritedWidget {
     // ********************
     // get class identifier
     final Token? classIdentifier = _getClassIdentifier(declaration);
+
     if (classIdentifier == null) {
       return;
     }
@@ -259,7 +258,9 @@ class DepProvider extends InheritedWidget {
 
     // bypassing all constructor's parameters
     for (final param in constructor.parameters.parameters) {
-      if (param is SimpleFormalParameter) {
+      if (param is RegularFormalParameter &&
+          !param.isNamed &&
+          !param.isOptional) {
         // simple parameter:
         //     final int k,
         inArgs.write('\n    $param, ');
@@ -272,29 +273,32 @@ class DepProvider extends InheritedWidget {
             final childEntities = namedType.typeArguments?.childEntities;
             childEntities?.forEach((element) {
               if (element is NamedType) {
-                context.usedClasses.add(element.name2.lexeme);
+                context.usedClasses.add(element.name.lexeme);
               }
             });
           }
 
-          final String type = '${namedTypes.first.name2}';
+          final String type = '${namedTypes.first.name}';
           context.usedClasses.add(type);
         }
-      } else if (param is FieldFormalParameter) {
+      } else if (param is FieldFormalParameter &&
+          !param.isNamed &&
+          !param.isOptional) {
         final String? type = _getPropertyType(declaration, '${param.name}');
+
         inArgs.write('\n    ');
-        if (param.keyword != null) {
-          inArgs.write('${param.keyword} ');
+        if (param.constFinalOrVarKeyword != null) {
+          inArgs.write('${param.constFinalOrVarKeyword} ');
         }
         inArgs.write('$type ${param.name}, ');
         outArgs.write('\n      ${param.name}, ');
 
         final namedTypes = param.childEntities.whereType<NamedType>();
         if (namedTypes.isNotEmpty) {
-          final String type = '${namedTypes.first.name2}';
+          final String type = '${namedTypes.first.name}';
           context.usedClasses.add(type);
         }
-      } else if (param is DefaultFormalParameter) {
+      } else if (param.isNamed || param.isOptional) {
         /*
           required String ssss,
           @DepArg() required bool testBool,
@@ -315,18 +319,19 @@ class DepProvider extends InheritedWidget {
           bool? ownBuilder;
 
           // going through the parameters
-          final expressions = param.parameter.metadata
+          final expressions = param.metadata
                   .firstWhereOrNull((e) => true)
                   ?.arguments
-                  ?.childEntities
-                  .whereType<NamedExpression>() ??
+                  ?.arguments
+                  .whereType<NamedArgument>() ??
               [];
           for (final expression in expressions) {
             // argumentForDepArgPackage
-            if (expression.beginToken.lexeme == argumentForDepArgPackage) {
+            if (expression.name.lexeme == argumentForDepArgPackage) {
               // add founded package import to used imports list
               context.foundedExternalPaths.entries.where((e) {
-                declaredPackageName = expression.endToken.lexeme
+                declaredPackageName = expression
+                    .argumentExpression.endToken.lexeme
                     .replaceAll('\'', '')
                     .replaceAll('"', '');
                 return e.key == declaredPackageName;
@@ -338,21 +343,21 @@ class DepProvider extends InheritedWidget {
               }
             }
             // argumentForDepArgUseBuilders
-            if (expression.beginToken.lexeme == argumentForDepArgUseBuilders) {
+            if (expression.name.lexeme == argumentForDepArgUseBuilders) {
               // add founded package import to used imports list
-              ownBuilder = bool.tryParse(expression.endToken.lexeme) ?? false;
+              ownBuilder = bool.tryParse(
+                      expression.argumentExpression.endToken.lexeme) ??
+                  false;
             }
           }
           declaredPackageName ??= '';
 
           // param has DepArg annotation
-          if (param.childEntities.first is SimpleFormalParameter) {
-            final paramName =
-                (param.childEntities.first as SimpleFormalParameter).name;
-            final namedTypes =
-                param.parameter.childEntities.whereType<NamedType>();
+          if (param is RegularFormalParameter) {
+            final paramName = param.name;
+            final namedTypes = param.childEntities.whereType<NamedType>();
             if (namedTypes.isNotEmpty) {
-              String type = '${namedTypes.first.name2}'..replaceAll('?', '');
+              String type = '${namedTypes.first.name}'..replaceAll('?', '');
               if ((declaredPackageName?.isNotEmpty ?? false) &&
                   type.startsWith(declaredPackageName!)) {
                 type = type.replaceFirst(declaredPackageName!, '');
@@ -387,9 +392,8 @@ class DepProvider extends InheritedWidget {
               }
               context.usedClasses.add(type);
             }
-          } else if (param.childEntities.first is FieldFormalParameter) {
-            final paramName =
-                (param.childEntities.first as FieldFormalParameter).name;
+          } else if (param is FieldFormalParameter) {
+            final paramName = param.name;
             String? type = _getPropertyType(declaration, '$paramName');
 
             if (type != null) {
@@ -442,11 +446,9 @@ class DepProvider extends InheritedWidget {
           }
         } else {
           // No DepArg annotation
-          if (param.childEntities.first is SimpleFormalParameter) {
-            final paramName =
-                (param.childEntities.first as SimpleFormalParameter).name;
-            final namedTypes =
-                param.parameter.childEntities.whereType<NamedType>();
+          if (param is RegularFormalParameter) {
+            final paramName = param.name;
+            final namedTypes = param.childEntities.whereType<NamedType>();
 
             if (namedTypes.isNotEmpty) {
               // parse type arguments
@@ -454,12 +456,12 @@ class DepProvider extends InheritedWidget {
                 final childEntities = namedType.typeArguments?.childEntities;
                 childEntities?.forEach((element) {
                   if (element is NamedType) {
-                    context.usedClasses.add(element.name2.lexeme);
+                    context.usedClasses.add(element.name.lexeme);
                   }
                 });
               }
 
-              final String type = '${namedTypes.first.name2}';
+              final String type = '${namedTypes.first.name}';
               context.usedClasses.add(type);
               if (param.isNamed) {
                 inNamedArgs.write('\n      $param, ');
@@ -469,9 +471,8 @@ class DepProvider extends InheritedWidget {
                 outNamedArgs.write('\n      $paramName,');
               }
             }
-          } else if (param.childEntities.first is FieldFormalParameter) {
-            final paramName =
-                (param.childEntities.first as FieldFormalParameter).name;
+          } else if (param is FieldFormalParameter) {
+            final paramName = param.name;
             final String? type = _getPropertyType(declaration, '$paramName');
             if (type != null) {
               context.usedClasses.add(type);
@@ -533,20 +534,24 @@ class DepProvider extends InheritedWidget {
 
   // get class identifier
   Token? _getClassIdentifier(CompilationUnitMember declaration) {
-    final declarationIdentifiers = declaration.childEntities
-        .whereType<Token>()
-        .where((token) => token.type == TokenType.IDENTIFIER);
+    final declarationIdentifiers =
+        declaration.childEntities.whereType<NameWithTypeParameters>();
     if (declarationIdentifiers.isEmpty) {
       return null;
     }
-    return declarationIdentifiers.first;
+    return declarationIdentifiers.first.typeName;
   }
 
   // find type of class property
   String? _getPropertyType(
       CompilationUnitMember declaration, String propertyName) {
-    final fieldsDeclaration =
-        declaration.childEntities.whereType<FieldDeclaration>();
+    final block =
+        declaration.childEntities.whereType<BlockClassBody>().firstOrNull;
+    if (block == null) {
+      return null;
+    }
+    final fieldsDeclaration = block.childEntities.whereType<FieldDeclaration>();
+
     for (final field in fieldsDeclaration) {
       final declarations =
           field.childEntities.whereType<VariableDeclarationList>();
